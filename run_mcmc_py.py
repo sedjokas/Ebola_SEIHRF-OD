@@ -3,7 +3,8 @@ run_mcmc_py.py
 ==============
 Python equivalent of run_mcmc.R using CmdStanPy.
 Calibrates the SEIHRF-OD model on the latest INRB-UMIE data
-(SitReps 001-012, data freeze 26 May 2026, build 13d78cb).
+(SitReps 001-070, data freeze 23 July 2026 [reports through 25 Jul],
+build fe2c943).
 
 Requirements (already installed):
     cmdstanpy == 1.3.0
@@ -25,43 +26,30 @@ STAN   = os.path.join(LANCET, "seihrf_od.stan")
 # ── 1. Load and prepare case data ─────────────────────────────────────────────
 print("Loading data …")
 
-cases_raw = pd.read_csv(
-    os.path.join(DATA, "insp_sitrep__new_confirmed_cases__daily.csv"),
-    dtype={"nom": str, "new_confirmed_cases": str}
-)
-cases_raw["date"] = pd.to_datetime(cases_raw["date"], dayfirst=True)
-cases_raw["new_confirmed_cases"] = pd.to_numeric(
-    cases_raw["new_confirmed_cases"], errors="coerce"
-).fillna(0)
-
-cases_daily = (
-    cases_raw.groupby("date")["new_confirmed_cases"]
-    .sum()
-    .sort_index()
-    .reset_index()
-    .rename(columns={"new_confirmed_cases": "n"})
+# National daily new-confirmed-cases series, derived from the cumulative INSP
+# SitRep series (data/update_2026_07_25/daily_new_cases_deaths_derived.csv):
+# the zone-level "new confirmed cases" file is not maintained past 1 June 2026
+# in the source repository, so daily increments are recovered from the
+# cumulative national series, distributing multi-day reporting gaps evenly
+# across the missing calendar days.
+derived = pd.read_csv(
+    os.path.join(DATA, "update_2026_07_25", "daily_new_cases_deaths_derived.csv"),
+    parse_dates=["date"],
 )
 
-# Fill contiguous date gaps with 0
-all_dates = pd.date_range(cases_daily["date"].min(), cases_daily["date"].max(), freq="D")
-cases_full = (
-    pd.DataFrame({"date": all_dates})
-    .merge(cases_daily, on="date", how="left")
-    .fillna({"n": 0})
-)
-cases_full["n"] = cases_full["n"].astype(int)
-
-y_cases = cases_full["n"].tolist()
+y_cases = derived["new_confirmed_cases_est"].round().astype(int).tolist()
 T = len(y_cases)
 
 print(f"T = {T} days | Total cases = {sum(y_cases)}")
-print(f"Date range: {cases_full['date'].iloc[0].date()} → {cases_full['date'].iloc[-1].date()}")
+print(f"Date range: {derived['date'].iloc[0].date()} → {derived['date'].iloc[-1].date()}")
 print(f"Daily series: {y_cases}")
 
 # ── 2. Compute phi0 from contact-tracing proxy ────────────────────────────────
 # phi0_obs = 1 - mean(r_c) over first 5 reporting days
 # r_c = cumulative_contacts_isolated / cumulative_contacts_listed
-# Use fixed value from manuscript (first 5 SitReps proxy unchanged)
+# Use fixed value from manuscript (first 5 SitReps proxy unchanged; phi0 is
+# the *initial* scepticism fraction at outbreak onset, not re-estimated as
+# the series lengthens)
 phi0_obs    = 0.38
 phi0_obs_sd = 0.05
 
@@ -69,16 +57,29 @@ phi0_obs_sd = 0.05
 stan_data = {
     "T":           T,
     "y_cases":     y_cases,
-    "N_pop":       120_000.0,
+    # Catchment population: sum of WorldPop GRID3 v4.4 counts across the 48
+    # health zones with actual confirmed cases as of SitRep 70 (build
+    # fe2c943; excludes 3 zones — Jiba, Karisimbi, Manguredjipa — listed in
+    # the repository with "ND"/no confirmed cases), dedup'd via the
+    # repository's own data/aliases.csv zone-name reconciliation table.
+    "N_pop":       10_877_533.0,
     "phi0_obs":    phi0_obs,
     "phi0_obs_sd": phi0_obs_sd,
-    # Five conflict anchors: [start_day, level] × 5
+    # Twelve conflict anchors: [start_day, level] × 12. Day 1 = 14 May 2026.
+    # See seihrf_od.stan header for full anchor documentation and sourcing.
     "x_r_conflict": [
-         0.0, 0.30,   # anchor 1: pre-epidemic baseline
-        17.0, 0.55,   # anchor 2: Nyankunde exposure, 11 May
-        24.0, 0.65,   # anchor 3: CDC announcement, 18 May
-        27.0, 1.00,   # anchor 4: Rwampara/Mongbwalu peak, 21-23 May
-        30.0, 0.60,   # anchor 5: persistent insecurity
+         1.0, 0.55,   # anchor 1:  window opens post-Nyankunde exposure, 11 May
+         5.0, 0.65,   # anchor 2:  CDC announcement + Berlin evacuation, 18 May
+         8.0, 1.00,   # anchor 3:  peak cluster I, Rwampara/Mongbwalu, 21-23 May
+        11.0, 0.60,   # anchor 4:  persistent insecurity I, 24 May onward
+        20.0, 0.75,   # anchor 5:  renewed escalation, Bunia/Katana attacks, 2 Jun
+        21.0, 1.00,   # anchor 6:  peak cluster II, Oicha/Mbau massacre, 3 Jun
+        25.0, 0.70,   # anchor 7:  persistent insecurity II, Nyamurongo attack, 7 Jun
+        33.0, 0.60,   # anchor 8:  partial de-escalation, 15 Jun
+        46.0, 0.70,   # anchor 9:  renewed disruption, PoC burned + attacks, late Jun-early Jul
+        55.0, 0.65,   # anchor 10: healthcare-provider strike, Bunia/Rwampara, 7-9 Jul
+        58.0, 0.75,   # anchor 11: repeat PoC vandalism + provider threats, 10 Jul
+        67.0, 0.85,   # anchor 12: Muchanga bridge attack + multi-zone resistance, 19 Jul
     ],
     "rel_tol":   1e-6,
     "abs_tol":   1e-8,

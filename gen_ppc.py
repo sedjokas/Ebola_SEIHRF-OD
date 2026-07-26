@@ -3,7 +3,7 @@ gen_ppc.py
 ==========
 Posterior predictive check (PPC) for the SEIHRF-OD model.
 
-Uses existing posterior_draws.csv (8 000 draws, fitted on all 13 days).
+Uses existing posterior_draws.csv (8 000 draws, fitted on all 52 days).
 For each draw, integrates the ODE and samples from NegBin2 to produce
 the posterior predictive distribution. Compares with observed daily cases.
 
@@ -43,17 +43,20 @@ FIXED = dict(
     omega_FR = 0.80,
     omega_FS = 3.00,
     beta_D   = 8.00,
-    N_pop    = 120_000.0,
-    seed_frac= 2e-4,
+    N_pop    = 10_877_533.0,
+    seed_total = 8.0,
 )
 
-# Conflict anchors: [start_day, level] × 5
-X_R = [0.0, 0.30, 17.0, 0.55, 24.0, 0.65, 27.0, 1.00, 30.0, 0.60]
+# Conflict anchors: [start_day, level] x 12. Day 1 = 14 May 2026.
+X_R = [1.0, 0.55, 5.0, 0.65, 8.0, 1.00, 11.0, 0.60,
+       20.0, 0.75, 21.0, 1.00, 25.0, 0.70, 33.0, 0.60, 46.0, 0.70,
+       55.0, 0.65, 58.0, 0.75, 67.0, 0.85]
+N_ANCHORS = len(X_R) // 2
 
 # ── Conflict intensity C(t) ────────────────────────────────────────────────────
 def conflict_C(t: float) -> float:
     c = 0.0
-    for k in range(5):
+    for k in range(N_ANCHORS):
         if t >= X_R[2 * k]:
             c = X_R[2 * k + 1]
     return c
@@ -92,16 +95,17 @@ def rhs(t: float, y: np.ndarray, p: dict) -> list:
 
 # ── Initial conditions ─────────────────────────────────────────────────────────
 def make_y0(phi0: float) -> list:
-    N    = FIXED["N_pop"]
-    sf   = FIXED["seed_frac"]
+    N          = FIXED["N_pop"]
+    seed_total = FIXED["seed_total"]
     NB   = (1 - phi0) * N
     NN   = phi0 * N
-    return [NB*(1-sf), 0, NB*sf, 0, 0,
-            NN*(1-sf), 0, NN*sf, 0, 0,
+    IB0, IN0 = (1 - phi0) * seed_total, phi0 * seed_total
+    return [NB-IB0, 0, IB0, 0, 0,
+            NN-IN0, 0, IN0, 0, 0,
             0, 0]
 
 # ── Run ODE for one parameter draw ────────────────────────────────────────────
-def run_ode(row: dict, T: int = 13) -> np.ndarray:
+def run_ode(row: dict, T: int = 52) -> np.ndarray:
     """Return mu[1..T] = kappa*(E_B + E_N) at integer time points."""
     p = {**FIXED, **row}
     y0 = make_y0(row["phi0"])
@@ -126,29 +130,12 @@ def sample_negbin2(mu: float, phi: float, rng: np.random.Generator) -> int:
 
 # ── Load data ─────────────────────────────────────────────────────────────────
 print("Loading case data …")
-cases_raw = pd.read_csv(
-    os.path.join(DATA, "insp_sitrep__new_confirmed_cases__daily.csv"),
-    dtype={"nom": str, "new_confirmed_cases": str},
+derived = pd.read_csv(
+    os.path.join(DATA, "update_2026_07_25", "daily_new_cases_deaths_derived.csv"),
+    parse_dates=["date"],
 )
-cases_raw["date"] = pd.to_datetime(cases_raw["date"], dayfirst=True)
-cases_raw["new_confirmed_cases"] = pd.to_numeric(
-    cases_raw["new_confirmed_cases"], errors="coerce"
-).fillna(0)
-cases_daily = (
-    cases_raw.groupby("date")["new_confirmed_cases"]
-    .sum().sort_index().reset_index()
-    .rename(columns={"new_confirmed_cases": "n"})
-)
-all_dates = pd.date_range(cases_daily["date"].min(),
-                          cases_daily["date"].max(), freq="D")
-cases_full = (
-    pd.DataFrame({"date": all_dates})
-    .merge(cases_daily, on="date", how="left")
-    .fillna({"n": 0})
-)
-cases_full["n"] = cases_full["n"].astype(int)
-y_obs   = cases_full["n"].values        # shape (13,)
-dates   = cases_full["date"].values
+y_obs   = derived["new_confirmed_cases_est"].round().astype(int).values  # shape (52,)
+dates   = derived["date"].values
 T       = len(y_obs)
 print(f"T={T}  dates: {dates[0].astype('datetime64[D]')} → {dates[-1].astype('datetime64[D]')}")
 print(f"y_obs = {y_obs.tolist()}")
@@ -226,9 +213,9 @@ ax.scatter(x, y_obs, color=CORAL, s=55, zorder=5,
            edgecolors="white", linewidths=0.8,
            label="Observed (INSP SitReps)")
 
-# Conflict events — thin vertical shading for t > 16 (anchor 2 onwards)
-# These are outside the calibration window but shown for context
-for start, end, label_txt in [(17, 23.5, "Conflict\nevents")]:
+# Conflict peak-intensity windows (C(t)=1.00): Rwampara/Mongbwalu (days 8-11)
+# and Oicha/Mbau massacre (days 21-25), in the day-1=14-May Stan convention.
+for start, end in [(8, 11), (21, 25)]:
     if start <= T:
         ax.axvspan(min(start, T-0.5), min(end, T-0.5),
                    alpha=0.08, color=RED_SHADE, zorder=0)
@@ -241,14 +228,19 @@ ax.text(0.02, 0.97, cov_text, transform=ax.transAxes,
         fontsize=8, va="top", ha="left",
         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.85))
 
-# Formatting
-ax.set_xticks(x)
-ax.set_xticklabels(date_labels, rotation=45, ha="right", fontsize=8)
+# Formatting — label every 5th day (plus the last day) so dates stay
+# readable at T=71; a tick per day is illegible at this series length.
+tick_step = 5
+tick_idx = list(range(0, T, tick_step))
+if tick_idx[-1] != T - 1:
+    tick_idx.append(T - 1)
+ax.set_xticks([x[i] for i in tick_idx])
+ax.set_xticklabels([date_labels[i] for i in tick_idx], rotation=45, ha="right", fontsize=8)
 ax.set_xlabel("Date (INSP SitRep)", fontsize=10)
 ax.set_ylabel("Daily confirmed cases", fontsize=10)
 ax.set_title(
-    "Posterior predictive check — SEIHRF-OD (INRB-UMIE/Ebola_DRC_2026, build 13d78cb)\n"
-    f"Calibration: all {T} days (14–26 May 2026, {N_DRAWS} posterior draws)",
+    "Posterior predictive check — SEIHRF-OD (INRB-UMIE/Ebola_DRC_2026, build fe2c943)\n"
+    f"Calibration: all {T} days (14 May–23 Jul 2026, {N_DRAWS} posterior draws)",
     fontsize=9,
 )
 ax.legend(fontsize=8, loc="upper right")

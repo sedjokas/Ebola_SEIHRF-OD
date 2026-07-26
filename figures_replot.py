@@ -2,12 +2,12 @@
 figures_replot.py
 =================
 Regenerates Figures 1, 3, S1, and S4 for the SEIHRF-OD manuscript
-using the correct Table 1 parameters and five-anchor C(t).
+using the correct Table 1 parameters and nine-anchor C(t).
 
 Fixes applied vs prior version:
   Fig 1  — Legend: "documented security events" (not "ACLED proxy")
   Fig 3  — Updated scenario percentages 20/16/29/44% (MCMC on 127 cases)
-  Fig S1 — Correct five-anchor C(t), conflict peak at days 6-8
+  Fig S1 — Correct nine-anchor C(t), conflict peaks at days 6-9 and 19-23
   Fig S4 — English anchor labels, correct Table 1 parameters
 
 Output: /Users/selainkaserekakabunga/Documents/Lancet_Paper/imgs/
@@ -32,20 +32,20 @@ ROOT_DIR = "/Users/selainkaserekakabunga/Documents/Lancet_Paper"
 
 # ── Correct Table 1 posterior-median parameters ───────────────────────────────
 
-N0   = 120_000   # outbreak-zone population (Ituri, calibrated)
-# Updated posterior medians — MCMC on 127 confirmed cases, SitReps 001-012
-# (INRB-UMIE/Ebola_DRC_2026 build 13d78cb, data freeze 26 May 2026)
-PHI0 = 0.392     # initial sceptic fraction
+N0   = 10_877_533  # sum of WorldPop GRID3 v4.4 counts, 48 confirmed-case zones
+# Updated posterior medians — MCMC on 2,973 confirmed cases, SitReps 001-070
+# (INRB-UMIE/Ebola_DRC_2026 build fb3eca2, data freeze 6 July 2026)
+PHI0 = 0.4593    # initial sceptic fraction
 
 P = dict(
     N          = N0,
-    beta_I     = 0.826,   # community transmission rate (day⁻¹)
+    beta_I     = 0.9294,  # community transmission rate (day⁻¹)
     beta_H     = 0.06,    # hospital/ETC transmission rate
-    beta_FR    = 1.610,   # reclaimed-body transmission rate (day⁻¹)
+    beta_FR    = 1.6591,  # reclaimed-body transmission rate (day⁻¹)
     beta_FS    = 0.002,   # safe-burial transmission rate (≈ 0)
     kappa      = 1.0/9,   # incubation rate (9-day BDBV mean)
     theta_B    = 0.28,    # hospitalisation rate — Believers
-    theta_N    = 0.040,   # hospitalisation rate — Sceptics
+    theta_N    = 0.0375,  # hospitalisation rate — Sceptics
     delta_I    = 0.18,    # community death rate
     delta_H    = 0.12,    # hospital death rate
     gamma_I    = 0.09,    # community recovery rate
@@ -54,9 +54,9 @@ P = dict(
     omega_FS   = 3.00,    # safe-burial removal rate (day⁻¹)
     psi_I      = 0.45,    # fraction of sceptic community deaths reclaimed
     psi_H      = 0.15,    # fraction of sceptic hospital deaths reclaimed
-    alpha      = 0.037,   # social contagion rate (B to N)
-    gamma_comm = 0.022,   # health communication rate (N to B)
-    delta_C    = 0.045,   # conflict amplification coefficient
+    alpha      = 0.0199,  # social contagion rate (B to N)
+    gamma_comm = 0.0734,  # health communication rate (N to B)
+    delta_C    = 0.0140,  # conflict amplification coefficient
     beta_D     = 8.00,    # visible-death distrust coefficient
     phi0       = PHI0,
 )
@@ -65,25 +65,36 @@ T_MAX = 90
 DAYS  = np.linspace(0, T_MAX, T_MAX * 10 + 1)
 
 # ── Documented C(t) in declaration-day units ──────────────────────────────────
-# Index case: 24 April 2026 (model day 0)
-# Outbreak declaration: 15 May 2026 (model day 21)
-# t_decl = model_day - 21
+# Outbreak declaration: 15 May 2026 (t_decl = 0)
 #
-# Anchors (Sources: OCHA, CDC, WHO DON602/DON603):
-#   Pre-epidemic baseline (model days 0-16,  t_decl < -4): C = 0.30
-#   Nyankunde exposure   (model days 17-23, -4 <= t_decl < 3): C = 0.55
-#   CDC announcement     (model days 24-26,  3 <= t_decl < 6): C = 0.65
-#   Rwampara/Mongbwalu   (model days 27-29,  6 <= t_decl <= 8): C = 1.00
-#   Persistent insecurity (model day 30+,   t_decl > 8): C = 0.60
+# Twelve anchors (Sources: OCHA, CDC, WHO DON602/DON603, INRB-UMIE security
+# pillar). See seihrf_od.stan header for full sourcing/documentation.
+CT_ANCHORS = [
+    (0.0,  0.55),   # window opens post-Nyankunde exposure, 11 May
+    (3.0,  0.65),   # CDC announcement + Berlin evacuation, 18 May
+    (6.0,  1.00),   # peak cluster I: Rwampara/Mongbwalu, 21-23 May
+    (9.0,  0.60),   # persistent insecurity I, 24 May onward
+    (18.0, 0.75),   # renewed escalation: Bunia/Katana attacks, 2 Jun
+    (19.0, 1.00),   # peak cluster II: Oicha/Mbau massacre, 3 Jun
+    (23.0, 0.70),   # persistent insecurity II: Nyamurongo attack, 7 Jun
+    (31.0, 0.60),   # partial de-escalation, 15 Jun
+    (44.0, 0.70),   # renewed disruption: PoC burned + attacks, late Jun-early Jul
+    (53.0, 0.65),   # healthcare-provider strike, Bunia/Rwampara, 7-9 Jul
+    (56.0, 0.75),   # repeat PoC vandalism + provider threats, 10 Jul
+    (65.0, 0.85),   # Muchanga bridge attack + multi-zone resistance, 19 Jul
+]
+
 
 def C_func(t: float, scale: float = 1.0) -> float:
-    model_t = t + 21.0
-    if model_t < 17.0:   c = 0.30
-    elif model_t < 24.0: c = 0.55
-    elif model_t < 27.0: c = 0.65
-    elif model_t <= 29.0: c = 1.00
-    else:                c = 0.60
+    c = CT_ANCHORS[0][1]
+    for start, level in CT_ANCHORS:
+        if t >= start:
+            c = level
     return c * scale
+
+
+# Peak-intensity (C=1.00) windows, for figure shading
+CT_PEAK_WINDOWS = [(6.0, 9.0), (19.0, 23.0)]
 
 
 # ── SEIHRF-OD ODE (14-state, declaration-day time axis) ───────────────────────
@@ -152,12 +163,15 @@ def odes(t, y, p,
 
 
 def initial_state(p: dict) -> list:
+    # Seed with an absolute infectious count (first-day cumulative confirmed
+    # cases), not a fraction of N — a fixed fraction would scale the seed
+    # with catchment population rather than with actual cases present at t=0.
     N, phi0 = p["N"], p["phi0"]
-    frac = 0.0002   # fraction initially infectious at declaration
-    IB0  = (1.0 - phi0) * N * frac
-    IN0  = phi0 * N * frac
-    SB0  = (1.0 - phi0) * N * (1.0 - frac)
-    SN0  = phi0 * N * (1.0 - frac)
+    seed_total = 8.0
+    IB0  = (1.0 - phi0) * seed_total
+    IN0  = phi0 * seed_total
+    SB0  = (1.0 - phi0) * N - IB0
+    SN0  = phi0 * N - IN0
     return [SB0, 0, IB0, 0, 0,
             SN0, 0, IN0, 0, 0,
             0, 0, 0, 0]
@@ -176,14 +190,19 @@ def run_model(p, gc_scale=1.0, bFR_scale=1.0, C_scale=1.0, gc_start=None):
 
 def posterior_draws(n: int = 100, seed: int = 42) -> list[dict]:
     rng = np.random.default_rng(seed)
+    real_draws = pd.read_csv(os.path.join(ROOT_DIR, "posterior_draws.csv"))
+    idx = rng.choice(len(real_draws), size=n, replace=False)
+    sample = real_draws.iloc[idx]
     draws = []
-    for _ in range(n):
+    for _, row in sample.iterrows():
         pd_ = dict(P)
-        pd_["beta_I"]     = rng.gamma(4.0, P["beta_I"] / 4.0)
-        pd_["beta_FR"]    = rng.gamma(4.0, P["beta_FR"] / 4.0)
-        pd_["phi0"]       = float(np.clip(rng.normal(0.37, 0.06), 0.15, 0.65))
-        pd_["gamma_comm"] = np.clip(rng.gamma(2.0, P["gamma_comm"] / 2.0), 0.005, 0.10)
-        pd_["alpha"]      = np.clip(rng.gamma(2.0, P["alpha"] / 2.0), 0.005, 0.15)
+        pd_["beta_I"]     = row["beta_I"]
+        pd_["beta_FR"]    = row["beta_FR"]
+        pd_["phi0"]       = row["phi0"]
+        pd_["theta_N"]    = row["theta_N"]
+        pd_["gamma_comm"] = row["gamma_comm"]
+        pd_["alpha"]      = row["alpha"]
+        pd_["delta_C"]    = row["delta_C"]
         draws.append(pd_)
     return draws
 
@@ -323,12 +342,13 @@ def figure1(draws: list[dict], cumcases, rc_data):
 
     ax1.scatter(days_obs, daily_new,
                 c=C_PAL["coral"], s=32, zorder=5, edgecolors="white", lw=0.5,
-                label="INSP confirmed cases (SitReps 001-007)")
+                label="INSP confirmed cases (SitReps 001-070)")
 
-    # C(t) spike (Rwampara/Mongbwalu peak: declaration days 6-8)
-    ax1.axvspan(6, 9, color=C_PAL["red"], alpha=0.10, lw=0)
-    ax1.axvline(6, color=C_PAL["red"], lw=0.7, ls=":", alpha=0.6)
-    ax1.axvline(9, color=C_PAL["red"], lw=0.7, ls=":", alpha=0.6)
+    # C(t) peak-intensity windows (Rwampara/Mongbwalu; Oicha/Mbau massacre)
+    for w_start, w_end in CT_PEAK_WINDOWS:
+        ax1.axvspan(w_start, w_end, color=C_PAL["red"], alpha=0.10, lw=0)
+        ax1.axvline(w_start, color=C_PAL["red"], lw=0.7, ls=":", alpha=0.6)
+        ax1.axvline(w_end, color=C_PAL["red"], lw=0.7, ls=":", alpha=0.6)
 
     conflict_patch = mpatches.Patch(
         color=C_PAL["red"], alpha=0.20,
@@ -349,7 +369,8 @@ def figure1(draws: list[dict], cumcases, rc_data):
              label=r"$\phi(t)$ median parameters")
     ax2.axhline(PHI0, color=C_PAL["gray"], lw=1.0, ls=":",
                 label=rf"$\phi_0 = {PHI0}$")
-    ax2.axvspan(6, 9, color=C_PAL["red"], alpha=0.10, lw=0)
+    for w_start, w_end in CT_PEAK_WINDOWS:
+        ax2.axvspan(w_start, w_end, color=C_PAL["red"], alpha=0.10, lw=0)
     ax2.set_ylabel(r"Scepticism proportion $\phi(t)$")
     ax2.set_ylim(0.0, 0.80)
     ax2.set_title(r"B  Opinion dynamics — $\phi(t)$ with conflict events")
@@ -366,16 +387,28 @@ def figure1(draws: list[dict], cumcases, rc_data):
                     c=C_PAL["purple"], s=28, zorder=5,
                     edgecolors="white", lw=0.5,
                     label=r"Observed $r_c(t)$ (contacts isolated / listed, INSP)")
-    ax3.axvspan(6, 9, color=C_PAL["red"], alpha=0.10, lw=0)
+    for w_start, w_end in CT_PEAK_WINDOWS:
+        ax3.axvspan(w_start, w_end, color=C_PAL["red"], alpha=0.10, lw=0)
     ax3.set_xlabel("Days since outbreak declaration (15 May 2026)")
     ax3.set_ylabel(r"Compliance ratio $r_c(t)$")
     ax3.set_ylim(0.0, 1.0)
     ax3.set_title(r"C  Contact-tracing compliance $r_c(t)$ vs model $1-\phi(t)$")
     ax3.legend(fontsize=8)
 
+    # Restrict the displayed window to the calibration period plus a short
+    # near-term margin: by day 90 the model's exponential growth (see
+    # Figure 5 / peak-timing analysis) is orders of magnitude larger than
+    # the observed daily counts, and even the 95% CrI band alone fans out
+    # fast enough to flatten panel A's fit to the x-axis if autoscaled. The
+    # full 90-day and long-horizon trajectories are shown in Figures 3-4
+    # and 5 respectively; here the y-axis is capped to the observed-data
+    # range so the calibration-window fit remains legible, and the CrI
+    # band is allowed to clip at the top of the panel.
+    FIG1_XMAX = 80
     for ax in [ax1, ax2, ax3]:
-        ax.set_xlim(0, T_MAX)
+        ax.set_xlim(0, FIG1_XMAX)
         ax.tick_params(labelsize=9)
+    ax1.set_ylim(0, float(np.max(daily_new)) * 2.2)
 
     save_fig(fig, "fig1_epidemic_opinion")
     plt.close(fig)
@@ -383,7 +416,7 @@ def figure1(draws: list[dict], cumcases, rc_data):
 
 # ── Figure 3: Counterfactual scenarios ────────────────────────────────────────
 # Scenario percentages from MCMC posterior analysis (manuscript Table 2)
-MCMC_PCT = {"S1": 20, "S2": 16, "S3": 29, "S1+S3": 44}
+MCMC_PCT = {"S1": 32, "S2": 23, "S3": 18, "S1+S3": 41}
 
 SCENARIOS = [
     ("Baseline",                           dict()),
@@ -484,13 +517,16 @@ def figureS1():
              label=r"$\mathcal{R}_t$ (7-day rolling window)")
     ax1.axhline(1.0, color="k", lw=0.9, ls="--", alpha=0.55,
                 label=r"$\mathcal{R}_t = 1$")
-    ax1.axvspan(6, 9, color=C_PAL["red"], alpha=0.10, lw=0)
-    ax1.axvline(6, color=C_PAL["red"], lw=0.8, ls=":", alpha=0.6)
-    ax1.axvline(9, color=C_PAL["red"], lw=0.8, ls=":", alpha=0.6)
-    ax1.text(7.5, 4.1, "C(t) = 1.0\n(days 6-8)",
+    for w_start, w_end in CT_PEAK_WINDOWS:
+        ax1.axvspan(w_start, w_end, color=C_PAL["red"], alpha=0.10, lw=0)
+        ax1.axvline(w_start, color=C_PAL["red"], lw=0.8, ls=":", alpha=0.6)
+        ax1.axvline(w_end, color=C_PAL["red"], lw=0.8, ls=":", alpha=0.6)
+    ax1.text(7.5, 4.1, "C(t) = 1.0\n(days 6-9)",
+             ha="center", fontsize=8, color=C_PAL["red"], va="top")
+    ax1.text(21, 4.1, "C(t) = 1.0\n(days 19-23)",
              ha="center", fontsize=8, color=C_PAL["red"], va="top")
     ax1.set_ylabel(r"$\mathcal{R}_t$")
-    ax1.set_title(r"S1-A  Time-varying $\mathcal{R}_t$ — conflict peak (days 6-8) highlighted")
+    ax1.set_title(r"S1-A  Time-varying $\mathcal{R}_t$ — conflict peaks highlighted")
     ax1.set_ylim(0, 4.5)
     ax1.legend(fontsize=9)
 
@@ -498,9 +534,10 @@ def figureS1():
              label=r"$\phi(t)$ scepticism proportion")
     ax2.axhline(PHI0, color=C_PAL["gray"], lw=0.9, ls=":",
                 label=rf"$\phi_0 = {PHI0}$")
-    ax2.axvspan(6, 9, color=C_PAL["red"], alpha=0.10, lw=0)
-    ax2.axvline(6, color=C_PAL["red"], lw=0.8, ls=":", alpha=0.6)
-    ax2.axvline(9, color=C_PAL["red"], lw=0.8, ls=":", alpha=0.6)
+    for w_start, w_end in CT_PEAK_WINDOWS:
+        ax2.axvspan(w_start, w_end, color=C_PAL["red"], alpha=0.10, lw=0)
+        ax2.axvline(w_start, color=C_PAL["red"], lw=0.8, ls=":", alpha=0.6)
+        ax2.axvline(w_end, color=C_PAL["red"], lw=0.8, ls=":", alpha=0.6)
     ax2.set_ylabel(r"$\phi(t)$")
     ax2.set_xlabel("Days since outbreak declaration (15 May 2026)")
     ax2.set_title(r"S1-B  Scepticism $\phi(t)$ co-evolves with $\mathcal{R}_t$"
@@ -515,21 +552,35 @@ def figureS1():
 
 # ── Figure S4: C(t) sensitivity (English labels, correct parameters) ──────────
 
-# Five-anchor C(t) for S4 in declaration-day units
+# Twelve-anchor C(t) for S4 in declaration-day units
 S4_ANCHORS = [
-    (None, -5,   0.30),   # pre-epidemic baseline
-    (-4,    2,   0.55),   # Nyankunde exposure
-    (3,     5,   0.65),   # CDC announcement / medical evacuation
-    (6,     8,   1.00),   # Rwampara/Mongbwalu peak
-    (9,  None,   0.60),   # persistent insecurity
+    (0,    3,    0.55),   # post-Nyankunde exposure baseline
+    (3,    6,    0.65),   # CDC announcement / medical evacuation
+    (6,    9,    1.00),   # Rwampara/Mongbwalu peak
+    (9,    18,   0.60),   # persistent insecurity I
+    (18,   19,   0.75),   # Bunia/Katana attacks
+    (19,   23,   1.00),   # Oicha/Mbau massacre
+    (23,   31,   0.70),   # persistent insecurity II
+    (31,   44,   0.60),   # partial de-escalation
+    (44,   53,   0.70),   # renewed disruption (PoC burned + attacks)
+    (53,   56,   0.65),   # healthcare-provider strike
+    (56,   65,   0.75),   # repeat PoC vandalism + provider threats
+    (65, None,   0.85),   # Muchanga attack + multi-zone resistance
 ]
 
 S4_LABELS_EN = [
-    "Anchor 1\nPre-epidemic baseline\n(OCHA Q1 2026)",
-    "Anchor 2\nNyankunde exposure\n(days -4 to 2, CDC)",
-    "Anchor 3\nCDC announcement\n(days 3-5, DON602)",
-    "Anchor 4\nRwampara/Mongbwalu\n(days 6-8, DON603)",
-    "Anchor 5\nPersistent insecurity\n(days 9+, OCHA May 2026)",
+    "Anchor 1\nPost-Nyankunde baseline\n(days 0-3, CDC/Guardian)",
+    "Anchor 2\nCDC announcement\n(days 3-6, DON602)",
+    "Anchor 3\nRwampara/Mongbwalu\n(days 6-9, DON603)",
+    "Anchor 4\nPersistent insecurity I\n(days 9-18, WHO DON603)",
+    "Anchor 5\nBunia/Katana attacks\n(days 18-19, INRB-UMIE)",
+    "Anchor 6\nOicha/Mbau massacre\n(days 19-23, INRB-UMIE)",
+    "Anchor 7\nPersistent insecurity II\n(days 23-31, INRB-UMIE)",
+    "Anchor 8\nPartial de-escalation\n(days 31-44, INRB-UMIE)",
+    "Anchor 9\nRenewed disruption\n(days 44-53, INRB-UMIE)",
+    "Anchor 10\nHealthcare strike\n(days 53-56, INRB-UMIE)",
+    "Anchor 11\nRepeat PoC vandalism\n(days 56-65, INRB-UMIE)",
+    "Anchor 12\nMuchanga attack\n(days 65+, INRB-UMIE)",
 ]
 
 
@@ -582,11 +633,11 @@ def odes_s4(t, y, p, anchors):
 
 def run_s4(p, anchors):
     N_, phi_ = p["N"], p["phi0"]
-    frac = 0.0002
-    IB0  = (1-phi_)*N_*frac
-    IN0  = phi_*N_*frac
-    y0   = [(1-phi_)*N_*(1-frac), 0, IB0, 0, 0,
-             phi_*N_*(1-frac),    0, IN0, 0, 0,
+    seed_total = 8.0
+    IB0  = (1-phi_)*seed_total
+    IN0  = phi_*seed_total
+    y0   = [(1-phi_)*N_ - IB0, 0, IB0, 0, 0,
+             phi_*N_ - IN0,    0, IN0, 0, 0,
              0, 0]
     sol = solve_ivp(
         odes_s4, (0, T_MAX), y0,
@@ -708,7 +759,7 @@ def figureS4():
 def main():
     print("=" * 62)
     print("figures_replot.py — SEIHRF-OD manuscript")
-    print("Correct Table 1 parameters + five-anchor C(t)")
+    print("Correct Table 1 parameters + nine-anchor C(t)")
     print("=" * 62)
 
     print("\n[Data] Loading INSP situation reports...")

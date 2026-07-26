@@ -1,26 +1,29 @@
 """
 holdout_validation.py
 =====================
-8/3 hold-out validation for the SEIHRF-OD model.
+Hold-out validation for the SEIHRF-OD model.
 
-Split (on the 13-day series: 14–26 May 2026):
-  Calibration : days 1–10  (14–23 May) → includes full conflict-peak data
-  Validation  : days 11–13 (24–26 May) → post-peak persistent insecurity
+Split (on the 71-day series: 14 May-23 Jul 2026):
+  Calibration : days 1-58  (14 May-10 Jul) -> includes both conflict peaks
+                and the healthcare-worker strike + repeat PoC vandalism
+                anchors (10, 11)
+  Validation  : days 59-71 (11-23 Jul)     -> Muchanga-attack /
+                multi-zone-resistance phase (anchor 12)
 
 Workflow:
-  1. Truncate observed series to T_calib = 10 days.
-  2. Run Stan MCMC on truncated data → posterior_calib.csv.
+  1. Truncate observed series to T_calib = 58 days.
+  2. Run Stan MCMC on truncated data -> posterior_calib.csv.
      (If posterior_calib.csv already exists the MCMC step is skipped.)
-  3. For each posterior draw, integrate the full 13-day ODE (deterministic).
-  4. Sample from NegBin2(mu[t], phi_obs) for t = 11, 12, 13.
-  5. Compare predictions with held-out observations y_valid = [4, 1, 16].
+  3. For each posterior draw, integrate the full 71-day ODE (deterministic).
+  4. Sample from NegBin2(mu[t], phi_obs) for t = 59..71.
+  5. Compare predictions with held-out observations.
   6. Report 50%/95% coverage and generate imgs/figS_holdout.pdf/.png.
 
 Reviewer message:
-  "We calibrated through the acute conflict peak (days 21–23 May) and
-   validated on the subsequent persistent-insecurity phase (days 24–26),
-   testing the model's ability to forecast post-peak dynamics from a
-   distinct epidemic regime."
+  "We calibrated through 10 July 2026 (both documented conflict peaks plus
+   the mid-July strike/vandalism anchors) and validated on the most recent
+   13-day window (11-23 Jul), testing the model's ability to forecast
+   forward through the Muchanga-attack / multi-zone-resistance phase."
 """
 
 from __future__ import annotations
@@ -41,9 +44,9 @@ CALIB_CSV   = os.path.join(LANCET, "posterior_calib.csv")
 OUT_PDF     = os.path.join(LANCET, "imgs", "figS_holdout.pdf")
 OUT_PNG     = os.path.join(LANCET, "imgs", "figS_holdout.png")
 
-T_CALIB = 10   # calibration days (days 1-10 = 14-23 May)
-T_FULL  = 13   # total days in dataset
-T_VALID = T_FULL - T_CALIB  # = 3 validation days
+T_CALIB = 58   # calibration days (days 1-58 = 14 May-10 Jul)
+T_FULL  = 71   # total days in dataset
+T_VALID = T_FULL - T_CALIB  # = 13 validation days
 
 # ── Fixed parameters (matches seihrf_od.stan transformed parameters) ──────────
 FIXED = dict(
@@ -60,15 +63,19 @@ FIXED = dict(
     omega_FR = 0.80,
     omega_FS = 3.00,
     beta_D   = 8.00,
-    N_pop    = 120_000.0,
-    seed_frac= 2e-4,
+    N_pop    = 10_877_533.0,
+    seed_total = 8.0,
 )
-X_R = [0.0, 0.30, 17.0, 0.55, 24.0, 0.65, 27.0, 1.00, 30.0, 0.60]
+# Twelve conflict anchors: [start_day, level] x 12. Day 1 = 14 May 2026.
+X_R = [1.0, 0.55, 5.0, 0.65, 8.0, 1.00, 11.0, 0.60,
+       20.0, 0.75, 21.0, 1.00, 25.0, 0.70, 33.0, 0.60, 46.0, 0.70,
+       55.0, 0.65, 58.0, 0.75, 67.0, 0.85]
+N_ANCHORS = len(X_R) // 2
 
 # ── Conflict C(t) ──────────────────────────────────────────────────────────────
 def conflict_C(t: float) -> float:
     c = 0.0
-    for k in range(5):
+    for k in range(N_ANCHORS):
         if t >= X_R[2 * k]:
             c = X_R[2 * k + 1]
     return c
@@ -106,9 +113,10 @@ def rhs(t: float, y: np.ndarray, p: dict) -> list:
     return [dSB, dEB, dIB, dHB, dRB, dSN, dEN, dIN, dHN, dRN, dFR, dFS]
 
 def make_y0(phi0: float) -> list:
-    N, sf = FIXED["N_pop"], FIXED["seed_frac"]
+    N, seed_total = FIXED["N_pop"], FIXED["seed_total"]
     NB, NN = (1-phi0)*N, phi0*N
-    return [NB*(1-sf), 0, NB*sf, 0, 0, NN*(1-sf), 0, NN*sf, 0, 0, 0, 0]
+    IB0, IN0 = (1-phi0)*seed_total, phi0*seed_total
+    return [NB-IB0, 0, IB0, 0, 0, NN-IN0, 0, IN0, 0, 0, 0, 0]
 
 def run_ode(row: dict, T: int) -> np.ndarray:
     """Return mu[1..T] = kappa*(E_B + E_N)."""
@@ -129,31 +137,14 @@ def sample_negbin2(mu: float, phi: float, rng: np.random.Generator) -> int:
 
 # ── 1. Load full data ─────────────────────────────────────────────────────────
 print("Loading data …")
-cases_raw = pd.read_csv(
-    os.path.join(DATA, "insp_sitrep__new_confirmed_cases__daily.csv"),
-    dtype={"nom": str, "new_confirmed_cases": str},
+derived = pd.read_csv(
+    os.path.join(DATA, "update_2026_07_25", "daily_new_cases_deaths_derived.csv"),
+    parse_dates=["date"],
 )
-cases_raw["date"] = pd.to_datetime(cases_raw["date"], dayfirst=True)
-cases_raw["new_confirmed_cases"] = pd.to_numeric(
-    cases_raw["new_confirmed_cases"], errors="coerce"
-).fillna(0)
-cases_daily = (
-    cases_raw.groupby("date")["new_confirmed_cases"]
-    .sum().sort_index().reset_index()
-    .rename(columns={"new_confirmed_cases": "n"})
-)
-all_dates = pd.date_range(cases_daily["date"].min(),
-                          cases_daily["date"].max(), freq="D")
-cases_full = (
-    pd.DataFrame({"date": all_dates})
-    .merge(cases_daily, on="date", how="left")
-    .fillna({"n": 0})
-)
-cases_full["n"] = cases_full["n"].astype(int)
-y_all   = cases_full["n"].values          # shape (13,)
-dates   = cases_full["date"].values
-y_calib = y_all[:T_CALIB].tolist()        # [0,13,0,0,20,16,11,21,13,11]
-y_valid = y_all[T_CALIB:].tolist()        # [4, 1, 16]
+y_all   = derived["new_confirmed_cases_est"].round().astype(int).values  # shape (71,)
+dates   = derived["date"].values
+y_calib = y_all[:T_CALIB].tolist()
+y_valid = y_all[T_CALIB:].tolist()
 
 print(f"Calibration ({T_CALIB} days): {y_calib}")
 print(f"Validation  ({T_VALID} days): {y_valid}")
@@ -176,7 +167,7 @@ else:
     stan_data_calib = {
         "T"           : T_CALIB,
         "y_cases"     : y_calib,
-        "N_pop"       : 120_000.0,
+        "N_pop"       : 8_314_486.0,
         "phi0_obs"    : 0.38,
         "phi0_obs_sd" : 0.05,
         "x_r_conflict": X_R,
@@ -300,11 +291,13 @@ ax.scatter(x[T_CALIB:], y_valid, color=VAL_COLOR, s=80, zorder=6,
 
 # Region labels
 y_max = max(max(y_all), float(hi95.max()))
+calib_start, calib_end = pd.Timestamp(dates[0]), pd.Timestamp(dates[T_CALIB - 1])
+valid_start, valid_end = pd.Timestamp(dates[T_CALIB]), pd.Timestamp(dates[-1])
 ax.text((T_CALIB - 1) / 2, y_max * 0.95,
-        "Calibration\n(14–23 May)", ha="center", va="top",
+        f"Calibration\n({calib_start:%d %b}–{calib_end:%d %b})", ha="center", va="top",
         color=LANCET_BLUE, fontsize=8, style="italic")
 ax.text(T_CALIB + (T_VALID - 1) / 2, y_max * 0.95,
-        "Validation\n(24–26 May)", ha="center", va="top",
+        f"Validation\n({valid_start:%d %b}–{valid_end:%d %b})", ha="center", va="top",
         color=VAL_COLOR, fontsize=8, style="italic")
 
 # Coverage annotation
@@ -320,13 +313,18 @@ ax.text(0.02, 0.97, cov_txt, transform=ax.transAxes,
         fontsize=7.5, va="top", ha="left",
         bbox=dict(boxstyle="round,pad=0.35", fc="white", ec="gray", alpha=0.9))
 
-# Formatting
-ax.set_xticks(x)
-ax.set_xticklabels(date_labels, rotation=45, ha="right", fontsize=8)
+# Formatting — label every 5th day (plus the last day) so dates stay
+# readable at T_FULL=71; a tick per day is illegible at this series length.
+tick_step = 5
+tick_idx = list(range(0, T_FULL, tick_step))
+if tick_idx[-1] != T_FULL - 1:
+    tick_idx.append(T_FULL - 1)
+ax.set_xticks([x[i] for i in tick_idx])
+ax.set_xticklabels([date_labels[i] for i in tick_idx], rotation=45, ha="right", fontsize=8)
 ax.set_xlabel("Date (INSP SitRep)", fontsize=10)
 ax.set_ylabel("Daily confirmed cases", fontsize=10)
 ax.set_title(
-    "Hold-out validation — SEIHRF-OD (8/3 split)\n"
+    f"Hold-out validation — SEIHRF-OD ({T_CALIB}/{T_VALID} split)\n"
     f"Calibrated on {T_CALIB} days · Forecasting {T_VALID} held-out days",
     fontsize=9,
 )

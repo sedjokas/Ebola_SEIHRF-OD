@@ -2,7 +2,7 @@
 compute_scenarios.py
 ====================
 Computes S1/S2/S3/S1+S3 scenario death-averted percentages and R0 values
-using the updated MCMC posterior medians (127-case run, SitReps 001-012).
+using the updated MCMC posterior medians (2,973-case run, SitReps 001-070).
 
 Also computes MCMC-based scenario percentages from posterior_draws.csv.
 """
@@ -14,14 +14,14 @@ from scipy.integrate import solve_ivp
 
 # ── Updated posterior-median parameters (MCMC on 127 cases) ──────────────────
 P = dict(
-    N          = 120_000,
-    beta_I     = 0.826,
+    N          = 10_877_533,
+    beta_I     = 0.9294,
     beta_H     = 0.06,
-    beta_FR    = 1.610,
+    beta_FR    = 1.6591,
     beta_FS    = 0.002,
     kappa      = 1.0 / 9,
     theta_B    = 0.28,
-    theta_N    = 0.040,
+    theta_N    = 0.0375,
     delta_I    = 0.18,
     delta_H    = 0.12,
     gamma_I    = 0.09,
@@ -30,24 +30,40 @@ P = dict(
     omega_FS   = 3.00,
     psi_I      = 0.45,
     psi_H      = 0.15,
-    alpha      = 0.037,
-    gamma_comm = 0.022,
-    delta_C    = 0.045,
+    alpha      = 0.0199,
+    gamma_comm = 0.0734,
+    delta_C    = 0.0140,
     beta_D     = 8.00,
-    phi0       = 0.392,
+    phi0       = 0.4593,
 )
 
 T_MAX = 90
 DAYS  = np.linspace(0, T_MAX, T_MAX * 10 + 1)
 
 
+# Twelve conflict anchors in declaration-day units (day 0 = 15 May 2026
+# outbreak declaration). See seihrf_od.stan header for full sourcing/documentation.
+CT_ANCHORS = [
+    (0.0,  0.55),   # window opens post-Nyankunde exposure, 11 May
+    (3.0,  0.65),   # CDC announcement + Berlin evacuation, 18 May
+    (6.0,  1.00),   # peak cluster I: Rwampara/Mongbwalu, 21-23 May
+    (9.0,  0.60),   # persistent insecurity I, 24 May onward
+    (18.0, 0.75),   # renewed escalation: Bunia/Katana attacks, 2 Jun
+    (19.0, 1.00),   # peak cluster II: Oicha/Mbau massacre, 3 Jun
+    (23.0, 0.70),   # persistent insecurity II: Nyamurongo attack, 7 Jun
+    (31.0, 0.60),   # partial de-escalation, 15 Jun
+    (44.0, 0.70),   # renewed disruption: PoC burned + attacks, late Jun-early Jul
+    (53.0, 0.65),   # healthcare-provider strike, Bunia/Rwampara, 7-9 Jul
+    (56.0, 0.75),   # repeat PoC vandalism + provider threats, 10 Jul
+    (65.0, 0.85),   # Muchanga bridge attack + multi-zone resistance, 19 Jul
+]
+
+
 def C_func(t: float, scale: float = 1.0) -> float:
-    model_t = t + 21.0
-    if model_t < 17.0:    c = 0.30
-    elif model_t < 24.0:  c = 0.55
-    elif model_t < 27.0:  c = 0.65
-    elif model_t <= 29.0: c = 1.00
-    else:                  c = 0.60
+    c = CT_ANCHORS[0][1]
+    for start, level in CT_ANCHORS:
+        if t >= start:
+            c = level
     return c * scale
 
 
@@ -98,9 +114,10 @@ def odes(t, y, p, gc_scale=1.0, bFR_override=None, C_scale=1.0, gc_start=None):
 
 def initial_state(p):
     N, phi0 = p["N"], p["phi0"]
-    frac = 0.0002
-    return [(1-phi0)*N*(1-frac), 0, (1-phi0)*N*frac, 0, 0,
-            phi0*N*(1-frac),     0, phi0*N*frac,      0, 0,
+    seed_total = 8.0
+    IB0, IN0 = (1-phi0)*seed_total, phi0*seed_total
+    return [(1-phi0)*N - IB0, 0, IB0, 0, 0,
+            phi0*N - IN0,     0, IN0, 0, 0,
             0, 0, 0, 0]
 
 

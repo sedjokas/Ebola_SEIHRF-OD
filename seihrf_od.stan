@@ -10,7 +10,7 @@
 // drive Ebola transmission dynamics in eastern DRC: a coupled
 // epidemic-opinion dynamics model (SEIHRF-OD)", submitted to
 // The Lancet Infectious Diseases, 2026.
-// Data: INRB-UMIE/Ebola_DRC_2026, build 235a3c3.
+// Data: INRB-UMIE/Ebola_DRC_2026, build fe2c943.
 //
 // State vector (12 compartments)
 // -------------------------------
@@ -35,11 +35,11 @@
 //
 // Calibration targets
 // -------------------
-//   Three parameters update substantially from their priors:
-//     beta_FR   (posterior median 1.62, 95% CrI: 1.14-2.11)
-//     phi0      (0.37, 0.27-0.50)
-//     beta_I    (0.74, 0.60-0.91)
-//   Remaining parameters are largely prior-dominated (small dataset N=83).
+//   Updated on each data refresh; see run_mcmc_py.py output / manuscript
+//   Table 1 for current posterior medians and 95% CrI. As of the SitRep 70
+//   freeze (23 Jul 2026, N=2,973 confirmed cases, T=71 days): beta_I,
+//   phi0, and gamma_comm update substantially from their priors; beta_FR,
+//   alpha, delta_C, theta_N remain largely prior-dominated.
 //
 // Usage (CmdStanR)
 // ----------------
@@ -59,34 +59,65 @@ functions {
 
   // --------------------------------------------------------------------------
   // Piecewise conflict-intensity function C(t)
-  // Five anchors from manuscript Data Sources section (table of security events):
+  // Twelve anchors from manuscript Data Sources section (table of security
+  // events). Model day t=1 corresponds to 14 May 2026 (first INSP SitRep
+  // date), matching the T-length data window used in `data { }` below.
   //
-  //  Anchor  Days      Level   Event
-  //  1       0 to 16   0.30   OCHA pre-epidemic baseline (Q1 2026: 5 800
-  //                           protection incidents, 11 humanitarian actor
-  //                           incidents; cited in WHO DON602)
-  //  2      17 to 23   0.55   Nyankunde accidental exposure of US health
-  //                           worker (11 May = day 17; CDC/Guardian 2026)
-  //  3      24 to 26   0.65   CDC public announcement and Berlin medical
-  //                           evacuation (18 May = day 24; CDC 2026)
-  //  4      27 to 29   1.00   Peak cluster: Rwampara tent burning (21 May),
+  //  Anchor  Day(s)   Level   Event
+  //  1       1        0.55   Window opens after Nyankunde accidental exposure
+  //                           of a US health worker (11 May; CDC/Guardian 2026)
+  //  2       5        0.65   CDC public announcement and Berlin medical
+  //                           evacuation (18 May; CDC 2026)
+  //  3       8        1.00   Peak cluster I: Rwampara tent burning (21 May),
   //                           Mongbwalu treatment-centre storming with 18
   //                           patients in flight (23 May); Le Devoir/Al Jazeera
-  //  5      30+        0.60   Persistent insecurity: over 100 000 newly
+  //  4       11       0.60   Persistent insecurity I: over 100 000 newly
   //                           displaced in Ituri and North Kivu (WHO DON603)
+  //  5       20       0.75   Renewed escalation: safe-burial team assaulted at
+  //                           Bunia cemetery and Katana coffin-abandonment
+  //                           incident (2 Jun; INRB-UMIE security pillar)
+  //  6       21       1.00   Peak cluster II: massacre of approximately 24
+  //                           civilians at Mbau (Oicha HZ), attributed to
+  //                           presumed ADF; response paralysed in Beni,
+  //                           Butembo, Oicha (3 Jun; INRB-UMIE security pillar)
+  //  7       25       0.70   Persistent insecurity II: repeat safe-burial team
+  //                           attack at Nyamurongo cemetery, Bunia (7 Jun)
+  //  8       33       0.60   Partial de-escalation: Mongbwalu response-team
+  //                           incident, no casualties (15 Jun)
+  //  9       46       0.70   Renewed disruption: point-of-care facility burned
+  //                           at Miala (28-29 Jun), PK51 incident (2 Jul),
+  //                           vandalism and team attacks in Bunia (3-4 Jul)
+  //  10      55       0.65   Healthcare-provider strike, Bunia/Rwampara
+  //                           health zones (7-9 Jul; resolved after military
+  //                           governor's intervention, INRB-UMIE)
+  //  11      58       0.75   Repeat vandalism at Avakubi/PK51 point-of-care
+  //                           (Nia-Nia, second incident), threats against
+  //                           providers at Mudzibala point-of-care (10 Jul)
+  //  12      67       0.85   Attack at Muchanga bridge and burial-team
+  //                           targeting at Muchanga (ongoing from 17 Jul);
+  //                           community resistance in Komanda, Mambasa,
+  //                           Mandima, Mangala, and Tuungane (19 Jul)
   //
-  // x_r layout (10 values = 5 x [start_day, level]):
-  //   x_r[1..2]   anchor 1: start=0,  level=0.30
-  //   x_r[3..4]   anchor 2: start=17, level=0.55
-  //   x_r[5..6]   anchor 3: start=24, level=0.65
-  //   x_r[7..8]   anchor 4: start=27, level=1.00
-  //   x_r[9..10]  anchor 5: start=30, level=0.60
+  // x_r layout (24 values = 12 x [start_day, level]):
+  //   x_r[1..2]    anchor 1:  start=1,  level=0.55
+  //   x_r[3..4]    anchor 2:  start=5,  level=0.65
+  //   x_r[5..6]    anchor 3:  start=8,  level=1.00
+  //   x_r[7..8]    anchor 4:  start=11, level=0.60
+  //   x_r[9..10]   anchor 5:  start=20, level=0.75
+  //   x_r[11..12]  anchor 6:  start=21, level=1.00
+  //   x_r[13..14]  anchor 7:  start=25, level=0.70
+  //   x_r[15..16]  anchor 8:  start=33, level=0.60
+  //   x_r[17..18]  anchor 9:  start=46, level=0.70
+  //   x_r[19..20]  anchor 10: start=55, level=0.65
+  //   x_r[21..22]  anchor 11: start=58, level=0.75
+  //   x_r[23..24]  anchor 12: start=67, level=0.85
   // --------------------------------------------------------------------------
   real conflict_C(real t, array[] real x_r) {
     // Walk anchors from last to first: return level of the highest anchor
     // whose start_day <= t
+    int n_anchors = num_elements(x_r) %/% 2;
     real c = 0.0;
-    for (k in 1:5) {
+    for (k in 1:n_anchors) {
       int idx = 2 * k - 1;          // index of start_day for anchor k
       if (t >= x_r[idx])
         c = x_r[idx + 1];           // update level (last match wins)
@@ -221,14 +252,21 @@ data {
   real<lower=0, upper=1> phi0_obs;
   real<lower=0>          phi0_obs_sd;   // uncertainty on the proxy estimate
 
-  // Conflict-intensity anchor parameters (5 anchors x 2 values = 10 elements)
-  // Format: [start_day_k, level_k] for k=1..5
-  // Anchor 1: day  0, C=0.30  (OCHA pre-epidemic baseline Q1 2026)
-  // Anchor 2: day 17, C=0.55  (Nyankunde accidental exposure, 11 May)
-  // Anchor 3: day 24, C=0.65  (CDC announcement + Berlin evacuation, 18 May)
-  // Anchor 4: day 27, C=1.00  (peak cluster: Rwampara+Mongbwalu, 21-23 May)
-  // Anchor 5: day 30, C=0.60  (persistent insecurity, 100k+ displaced)
-  array[10] real x_r_conflict;
+  // Conflict-intensity anchor parameters (12 anchors x 2 values = 24 elements)
+  // Format: [start_day_k, level_k] for k=1..12; day 1 = 14 May 2026.
+  // Anchor 1:  day  1, C=0.55  (window opens post-Nyankunde exposure, 11 May)
+  // Anchor 2:  day  5, C=0.65  (CDC announcement + Berlin evacuation, 18 May)
+  // Anchor 3:  day  8, C=1.00  (peak cluster I: Rwampara+Mongbwalu, 21-23 May)
+  // Anchor 4:  day 11, C=0.60  (persistent insecurity I, 100k+ displaced)
+  // Anchor 5:  day 20, C=0.75  (renewed escalation: Bunia/Katana attacks, 2 Jun)
+  // Anchor 6:  day 21, C=1.00  (peak cluster II: Oicha/Mbau massacre, 3 Jun)
+  // Anchor 7:  day 25, C=0.70  (persistent insecurity II: Nyamurongo attack, 7 Jun)
+  // Anchor 8:  day 33, C=0.60  (partial de-escalation, 15 Jun)
+  // Anchor 9:  day 46, C=0.70  (renewed disruption: PoC burned + attacks, late Jun-early Jul)
+  // Anchor 10: day 55, C=0.65  (healthcare-provider strike, Bunia/Rwampara, 7-9 Jul)
+  // Anchor 11: day 58, C=0.75  (repeat PoC vandalism + provider threats, 10 Jul)
+  // Anchor 12: day 67, C=0.85  (Muchanga bridge attack + multi-zone resistance, 19 Jul)
+  array[24] real x_r_conflict;
 
   // ODE solver tolerance controls
   real<lower=0> rel_tol;
@@ -316,24 +354,30 @@ transformed parameters {
   theta_ode[19] = delta_C;
 
   // Initial conditions
-  // Seed with a small infectious fraction split by belief
+  // Seed with an absolute infectious count (not a fraction of N_pop, which
+  // would make the seed scale with catchment population rather than with
+  // the actual number of cases present at t=0). seed_total matches the
+  // cumulative confirmed-case count on the first day of the fit window,
+  // split across belief groups in proportion to phi0.
   real NB0 = (1.0 - phi0) * N_pop;
   real NN0 = phi0         * N_pop;
-  real seed_frac = 2e-4;   // 0.02% initially infectious per group
+  real seed_total = 8.0;   // first-day cumulative confirmed cases
+  real seed_B = (1.0 - phi0) * seed_total;
+  real seed_N = phi0         * seed_total;
 
   vector[12] y0;
-  y0[1]  = NB0 * (1.0 - seed_frac);  // S_B
-  y0[2]  = 0.0;                       // E_B
-  y0[3]  = NB0 * seed_frac;           // I_B
-  y0[4]  = 0.0;                       // H_B
-  y0[5]  = 0.0;                       // R_B
-  y0[6]  = NN0 * (1.0 - seed_frac);  // S_N
-  y0[7]  = 0.0;                       // E_N
-  y0[8]  = NN0 * seed_frac;           // I_N
-  y0[9]  = 0.0;                       // H_N
-  y0[10] = 0.0;                       // R_N
-  y0[11] = 0.0;                       // F_R
-  y0[12] = 0.0;                       // F_S
+  y0[1]  = NB0 - seed_B;               // S_B
+  y0[2]  = 0.0;                        // E_B
+  y0[3]  = seed_B;                     // I_B
+  y0[4]  = 0.0;                        // H_B
+  y0[5]  = 0.0;                        // R_B
+  y0[6]  = NN0 - seed_N;               // S_N
+  y0[7]  = 0.0;                        // E_N
+  y0[8]  = seed_N;                     // I_N
+  y0[9]  = 0.0;                        // H_N
+  y0[10] = 0.0;                        // R_N
+  y0[11] = 0.0;                        // F_R
+  y0[12] = 0.0;                        // F_S
 
   // Integrate ODE system
   // Use ode_bdf (L-stable BDF solver) — appropriate for this moderately

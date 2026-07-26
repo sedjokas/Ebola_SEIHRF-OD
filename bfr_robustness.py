@@ -3,7 +3,7 @@ bfr_robustness.py
 =================
 Sweeps beta_FR across its full prior range and computes:
   - R0 (SEIHRF-OD analytical formula)
-  - R0 underestimation bias vs homogeneous model (R0_hom = 1.80 fixed)
+  - R0 underestimation bias vs homogeneous model (R0_hom, see below)
   - S3 deaths averted % at day 90 (eliminate body reclamation: beta_FR -> 0)
 
 Demonstrates that headline conclusions hold qualitatively at all prior
@@ -16,13 +16,13 @@ from scipy.integrate import solve_ivp
 
 # ── Correct posterior-median parameters (Table 1) ─────────────────────────────
 P = dict(
-    N          = 120_000,
-    beta_I     = 0.826,   # updated: MCMC on 127 cases (SitReps 001-012)
+    N          = 10_877_533,
+    beta_I     = 0.9294,  # updated: MCMC on 2,973 cases (SitReps 001-070)
     beta_H     = 0.06,
     beta_FS    = 0.002,
     kappa      = 1.0 / 9,
     theta_B    = 0.28,
-    theta_N    = 0.040,
+    theta_N    = 0.0375,
     delta_I    = 0.18,
     delta_H    = 0.12,
     gamma_I    = 0.09,
@@ -31,28 +31,40 @@ P = dict(
     omega_FS   = 3.00,
     psi_I      = 0.45,
     psi_H      = 0.15,
-    alpha      = 0.037,
-    gamma_comm = 0.022,
-    delta_C    = 0.045,
+    alpha      = 0.0199,
+    gamma_comm = 0.0734,
+    delta_C    = 0.0140,
     beta_D     = 8.00,
-    phi0       = 0.392,   # updated
+    phi0       = 0.4593,  # updated
 )
 
-# R0 homogeneous-model benchmark (fitted to same data, prior paper result)
-R0_HOM = 1.80
+# R0 homogeneous-model benchmark: single-population SEIRH model fit via NegBin
+# MLE to the same 71-day case series (homogeneous_r0.py). The gap between
+# this and the stratified estimate is not a fixed quantity across data
+# freezes: 21% at the original 13-day series, ~0% at the 52-day series,
+# ~10% at this 71-day series (homogeneous_r0.py). This variability itself
+# is a finding: the stratified model's durable value-add is decomposing
+# R0 into R0^B vs R0^N, not a reliable fixed-magnitude aggregate correction.
+R0_HOM = 2.320
 
 T_MAX = 90
 DAYS  = np.linspace(0, T_MAX, T_MAX * 10 + 1)
 
 
-# ── C(t) step function ────────────────────────────────────────────────────────
+# ── C(t) step function (twelve anchors, declaration-day units) ────────────────
+CT_ANCHORS = [
+    (0.0,  0.55), (3.0, 0.65), (6.0, 1.00), (9.0, 0.60),
+    (18.0, 0.75), (19.0, 1.00), (23.0, 0.70), (31.0, 0.60), (44.0, 0.70),
+    (53.0, 0.65), (56.0, 0.75), (65.0, 0.85),
+]
+
+
 def C_func(t: float) -> float:
-    model_t = t + 21.0
-    if model_t < 17.0:    return 0.30
-    elif model_t < 24.0:  return 0.55
-    elif model_t < 27.0:  return 0.65
-    elif model_t <= 29.0: return 1.00
-    else:                 return 0.60
+    c = CT_ANCHORS[0][1]
+    for start, level in CT_ANCHORS:
+        if t >= start:
+            c = level
+    return c
 
 
 # ── ODE ───────────────────────────────────────────────────────────────────────
@@ -98,9 +110,10 @@ def odes(t, y, p, bFR_val):
 
 def initial_state(p):
     N, phi0 = p["N"], p["phi0"]
-    frac = 0.0002
-    return [(1-phi0)*N*(1-frac), 0, (1-phi0)*N*frac, 0, 0,
-            phi0*N*(1-frac),     0, phi0*N*frac,      0, 0,
+    seed_total = 8.0
+    IB0, IN0 = (1-phi0)*seed_total, phi0*seed_total
+    return [(1-phi0)*N - IB0, 0, IB0, 0, 0,
+            phi0*N - IN0,     0, IN0, 0, 0,
             0, 0, 0, 0]
 
 

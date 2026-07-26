@@ -5,7 +5,7 @@ Generates Figure 4 for the SEIHRF-OD manuscript:
   Panel A: Tornado plot of first-order Sobol sensitivity indices for D(90)
   Panel B: Prior vs posterior density for β_FR, φ₀, γ_comm, α
 
-Uses updated posterior-median parameters (MCMC on 127 cases, SitReps 001-012).
+Uses updated posterior-median parameters (MCMC on 2,973 cases, SitReps 001-070).
 """
 
 from __future__ import annotations
@@ -26,24 +26,30 @@ ROOT   = "/Users/selainkaserekakabunga/Documents/Lancet_Paper"
 
 # ── Posterior-median parameters (updated) ─────────────────────────────────────
 P_MED = dict(
-    N=120_000, beta_I=0.826, beta_H=0.06, beta_FR=1.610, beta_FS=0.002,
-    kappa=1/9, theta_B=0.28, theta_N=0.040, delta_I=0.18, delta_H=0.12,
+    N=10_877_533, beta_I=0.9294, beta_H=0.06, beta_FR=1.6591, beta_FS=0.002,
+    kappa=1/9, theta_B=0.28, theta_N=0.0375, delta_I=0.18, delta_H=0.12,
     gamma_I=0.09, gamma_H=0.10, omega_FR=0.80, omega_FS=3.00,
-    psi_I=0.45, psi_H=0.15, alpha=0.037, gamma_comm=0.022, delta_C=0.045,
-    beta_D=8.00, phi0=0.392,
+    psi_I=0.45, psi_H=0.15, alpha=0.0199, gamma_comm=0.0734, delta_C=0.0140,
+    beta_D=8.00, phi0=0.4593,
 )
 
 T_MAX = 90
 DAYS  = np.linspace(0, T_MAX, T_MAX * 5 + 1)
 
 
+CT_ANCHORS = [
+    (0.0,  0.55), (3.0, 0.65), (6.0, 1.00), (9.0, 0.60),
+    (18.0, 0.75), (19.0, 1.00), (23.0, 0.70), (31.0, 0.60), (44.0, 0.70),
+    (53.0, 0.65), (56.0, 0.75), (65.0, 0.85),
+]
+
+
 def C_func(t):
-    m = t + 21.0
-    if m < 17:   return 0.30
-    elif m < 24: return 0.55
-    elif m < 27: return 0.65
-    elif m <= 29: return 1.00
-    else:         return 0.60
+    c = CT_ANCHORS[0][1]
+    for start, level in CT_ANCHORS:
+        if t >= start:
+            c = level
+    return c
 
 
 def odes(t, y, p):
@@ -87,9 +93,10 @@ def p_vec(pm):
 
 def run_D90(pm):
     N, phi0 = pm["N"], pm["phi0"]
-    frac = 0.0002
-    y0 = [(1-phi0)*N*(1-frac),0,(1-phi0)*N*frac,0,0,
-          phi0*N*(1-frac),0,phi0*N*frac,0,0,0,0,0]
+    seed_total = 8.0
+    IB0, IN0 = (1-phi0)*seed_total, phi0*seed_total
+    y0 = [(1-phi0)*N-IB0,0,IB0,0,0,
+          phi0*N-IN0,0,IN0,0,0,0,0,0]
     pv = p_vec(pm)
     sol = solve_ivp(odes,(0,T_MAX),y0,args=(pv,),t_eval=DAYS,
                     method="RK45",rtol=1e-6,atol=1e-8)
@@ -105,13 +112,13 @@ problem = {
     "names": [r"$\beta_{FR}$", r"$\phi_0$", r"$\beta_I$",
               r"$\gamma_{\rm comm}$", r"$\delta_C$", r"$\alpha$", r"$\theta_N$"],
     "bounds": [
-        [1.121, 2.093],    # beta_FR: 95% CrI
-        [0.294, 0.490],    # phi0: 95% CrI
-        [0.686, 0.964],    # beta_I: 95% CrI
-        [0.006, 0.067],    # gamma_comm: 95% CrI
-        [0.012, 0.141],    # delta_C: 95% CrI
-        [0.011, 0.114],    # alpha: 95% CrI
-        [0.024, 0.055],    # theta_N: 95% CrI
+        [1.164, 2.144],    # beta_FR: 95% CrI
+        [0.360, 0.557],    # phi0: 95% CrI
+        [0.864, 0.997],    # beta_I: 95% CrI
+        [0.039, 0.098],    # gamma_comm: 95% CrI
+        [0.010, 0.032],    # delta_C: 95% CrI
+        [0.010, 0.050],    # alpha: 95% CrI
+        [0.022, 0.053],    # theta_N: 95% CrI
     ],
 }
 
