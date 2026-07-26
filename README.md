@@ -399,7 +399,7 @@ min ESS=2 784 — consistent with full-data posterior.
 | | 50% CrI | 95% CrI |
 |---|---|---|
 | Calibration coverage (58 days) | 30/58 (52%) | 50/58 (86%) |
-| **Forecast coverage (13 held-out days)** | 2/13 (15%) | **13/13 (100%)** ✅ |
+| **Forecast coverage (13 held-out days)** | 2/13 (15%) | **13/13 (100%)**  |
 
 All 13 held-out observations (11–23 Jul) fall within the 95% credible
 interval of the out-of-sample forecast, though only 2/13 fall within the
