@@ -9,7 +9,7 @@ This repository contains the code, data, and figures for:
 > "Political distrust, armed conflict, and body reclamation drive Ebola
 > transmission dynamics in eastern Democratic Republic of Congo: a
 > coupled epidemic and opinion dynamics model (SEIHRF-OD)"
-> — under review, *The Lancet Infectious Diseases*, 2026
+> — under review, 2026
 >
 > University of Klagenfurt · INRB/INOHA Kinshasa · INSP Kinshasa
 
@@ -468,7 +468,6 @@ WHO situation reports:
   title   = {Political distrust, armed conflict, and body reclamation
              drive {Ebola} transmission dynamics in eastern {DRC}:
              a coupled epidemic and opinion dynamics model ({SEIHRF-OD})},
-  journal = {The Lancet Infectious Diseases},
   year    = {2026},
   note    = {Under review}
 }
