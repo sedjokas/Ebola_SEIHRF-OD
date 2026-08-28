@@ -14,15 +14,15 @@ from __future__ import annotations
 import numpy as np
 from scipy.integrate import solve_ivp
 
-# ── Correct posterior-median parameters (Table 1) ─────────────────────────────
+# ── Correct posterior-median parameters (updated 104-day freeze) ──────────────
 P = dict(
-    N          = 10_877_533,
-    beta_I     = 0.9294,  # updated: MCMC on 2,973 cases (SitReps 001-070)
+    N          = 12_996_531,
+    beta_I     = 0.8196,  # updated: MCMC on 104-day series (through 25 Aug 2026)
     beta_H     = 0.06,
     beta_FS    = 0.002,
     kappa      = 1.0 / 9,
     theta_B    = 0.28,
-    theta_N    = 0.0375,
+    theta_N    = 0.0352,
     delta_I    = 0.18,
     delta_H    = 0.12,
     gamma_I    = 0.09,
@@ -31,21 +31,22 @@ P = dict(
     omega_FS   = 3.00,
     psi_I      = 0.45,
     psi_H      = 0.15,
-    alpha      = 0.0199,
-    gamma_comm = 0.0734,
-    delta_C    = 0.0140,
+    alpha      = 0.0176,
+    gamma_comm = 0.0832,
+    delta_C    = 0.0115,
     beta_D     = 8.00,
-    phi0       = 0.4593,  # updated
+    phi0       = 0.5097,  # updated
 )
 
 # R0 homogeneous-model benchmark: single-population SEIRH model fit via NegBin
-# MLE to the same 71-day case series (homogeneous_r0.py). The gap between
+# MLE to the same 104-day case series (homogeneous_r0.py). The gap between
 # this and the stratified estimate is not a fixed quantity across data
 # freezes: 21% at the original 13-day series, ~0% at the 52-day series,
-# ~10% at this 71-day series (homogeneous_r0.py). This variability itself
-# is a finding: the stratified model's durable value-add is decomposing
-# R0 into R0^B vs R0^N, not a reliable fixed-magnitude aggregate correction.
-R0_HOM = 2.320
+# ~10% at the 71-day series, ~19% at this 104-day series (homogeneous_r0.py).
+# This variability itself is a finding: the stratified model's durable
+# value-add is decomposing R0 into R0^B vs R0^N, not a reliable
+# fixed-magnitude aggregate correction.
+R0_HOM = 2.009
 
 T_MAX = 90
 DAYS  = np.linspace(0, T_MAX, T_MAX * 10 + 1)
@@ -148,8 +149,9 @@ def analytic_R0(p, bFR_val):
 
 
 # ── Sweep ─────────────────────────────────────────────────────────────────────
-# Prior: Normal(1.60, 0.25) — 1st/5th/25th/50th/75th/95th/99th percentiles
-bFR_values = [0.50, 1.19, 1.35, 1.62, 1.85, 2.01, 2.50, 3.00]
+# Prior: Normal(1.60, 0.25) — fixed grid (unchanged across freezes) with the
+# "posterior median" point updated to this freeze's actual posterior median.
+bFR_values = [0.50, 1.19, 1.35, 1.74, 1.85, 2.01, 2.50, 3.00]
 labels = [
     "extreme low",
     "prior 5th pct",
@@ -162,7 +164,7 @@ labels = [
 ]
 
 # Baseline deaths (at posterior median beta_FR)
-D_base = run(P, 1.62)   # posterior median beta_FR
+D_base = run(P, 1.7388)   # posterior median beta_FR
 # S3 baseline: beta_FR = 0
 D_S3_base = run(P, 0.0)
 S3_base_pct = 100 * (D_base - D_S3_base) / D_base
@@ -182,5 +184,5 @@ for bFR, lbl in zip(bFR_values, labels):
     print(f"{bFR:6.2f}  {lbl:<20}  {R0:6.2f}  {R0N:6.2f}  "
           f"{hom_bias_pct:>+9.0f}%  {s3_pct:>10.0f}%  {D_base_i:>8.0f}")
 
-print(f"\nBaseline (posterior median β_FR=1.62): D(90) = {D_base:.0f} deaths")
+print(f"\nBaseline (posterior median β_FR=1.74): D(90) = {D_base:.0f} deaths")
 print(f"S3 (β_FR=0): D(90) = {D_S3_base:.0f} deaths  →  {S3_base_pct:.0f}% averted")

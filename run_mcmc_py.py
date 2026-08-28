@@ -3,8 +3,7 @@ run_mcmc_py.py
 ==============
 Python equivalent of run_mcmc.R using CmdStanPy.
 Calibrates the SEIHRF-OD model on the latest INRB-UMIE data
-(SitReps 001-070, data freeze 23 July 2026 [reports through 25 Jul],
-build fe2c943).
+(data freeze 25 August 2026, build 1819da2).
 
 Requirements (already installed):
     cmdstanpy == 1.3.0
@@ -19,7 +18,7 @@ import pandas as pd
 from cmdstanpy import CmdStanModel
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-LANCET = "/Users/selainkaserekakabunga/Documents/Lancet_Paper"
+LANCET = os.path.dirname(os.path.abspath(__file__))
 DATA   = os.path.join(LANCET, "data")
 STAN   = os.path.join(LANCET, "seihrf_od.stan")
 
@@ -27,13 +26,13 @@ STAN   = os.path.join(LANCET, "seihrf_od.stan")
 print("Loading data …")
 
 # National daily new-confirmed-cases series, derived from the cumulative INSP
-# SitRep series (data/update_2026_07_25/daily_new_cases_deaths_derived.csv):
+# SitRep series (data/update_2026_08_25/daily_new_cases_deaths_derived.csv):
 # the zone-level "new confirmed cases" file is not maintained past 1 June 2026
 # in the source repository, so daily increments are recovered from the
 # cumulative national series, distributing multi-day reporting gaps evenly
 # across the missing calendar days.
 derived = pd.read_csv(
-    os.path.join(DATA, "update_2026_07_25", "daily_new_cases_deaths_derived.csv"),
+    os.path.join(DATA, "update_2026_08_25", "daily_new_cases_deaths_derived.csv"),
     parse_dates=["date"],
 )
 
@@ -42,14 +41,11 @@ T = len(y_cases)
 
 print(f"T = {T} days | Total cases = {sum(y_cases)}")
 print(f"Date range: {derived['date'].iloc[0].date()} → {derived['date'].iloc[-1].date()}")
-print(f"Daily series: {y_cases}")
 
-# ── 2. Compute phi0 from contact-tracing proxy ────────────────────────────────
-# phi0_obs = 1 - mean(r_c) over first 5 reporting days
-# r_c = cumulative_contacts_isolated / cumulative_contacts_listed
-# Use fixed value from manuscript (first 5 SitReps proxy unchanged; phi0 is
-# the *initial* scepticism fraction at outbreak onset, not re-estimated as
-# the series lengthens)
+# ── 2. phi0 seed from contact-tracing proxy ───────────────────────────────────
+# phi0_obs = 1 - mean(r_c) over first 5 reporting days (unchanged across
+# freezes: phi0 is the *initial* scepticism fraction at outbreak onset,
+# not re-estimated as the series lengthens).
 phi0_obs    = 0.38
 phi0_obs_sd = 0.05
 
@@ -57,16 +53,17 @@ phi0_obs_sd = 0.05
 stan_data = {
     "T":           T,
     "y_cases":     y_cases,
-    # Catchment population: sum of WorldPop GRID3 v4.4 counts across the 48
-    # health zones with actual confirmed cases as of SitRep 70 (build
-    # fe2c943; excludes 3 zones — Jiba, Karisimbi, Manguredjipa — listed in
-    # the repository with "ND"/no confirmed cases), dedup'd via the
-    # repository's own data/aliases.csv zone-name reconciliation table.
-    "N_pop":       10_877_533.0,
+    # Catchment population: sum of WorldPop GRID3 v4.4 counts across the 58
+    # health zones with confirmed cases as of this freeze (build 1819da2),
+    # dedup'd via the repository's own data/aliases.csv reconciliation table.
+    "N_pop":       12_996_531.0,
     "phi0_obs":    phi0_obs,
     "phi0_obs_sd": phi0_obs_sd,
     # Twelve conflict anchors: [start_day, level] × 12. Day 1 = 14 May 2026.
-    # See seihrf_od.stan header for full anchor documentation and sourcing.
+    # Unchanged since the 71-day freeze: no new anchors have been formally
+    # calibrated for the 24 Jul-25 Aug window (see README "What changed" /
+    # manuscript Limitations). C(t) holds at the last anchor's level (0.85)
+    # for all t beyond day 67 -- see seihrf_od.stan's conflict_C().
     "x_r_conflict": [
          1.0, 0.55,   # anchor 1:  window opens post-Nyankunde exposure, 11 May
          5.0, 0.65,   # anchor 2:  CDC announcement + Berlin evacuation, 18 May
@@ -119,12 +116,16 @@ params = ["beta_I", "beta_FR", "phi0", "theta_N", "alpha",
           "gamma_comm", "delta_C", "phi_obs", "R0"]
 summary = fit.summary(sig_figs=4)
 
-# Filter to key parameters
+# CmdStanPy >= 1.1 uses ESS_bulk; older versions use N_Eff
+ess_col = "ESS_bulk" if "ESS_bulk" in summary.columns else "N_Eff"
+display_cols = [c for c in ["Mean", "StdDev", "5%", "50%", "95%", "R_hat", ess_col]
+                if c in summary.columns]
+
 key_rows = summary[summary.index.isin(params)]
-print(key_rows[["Mean", "StdDev", "5%", "50%", "95%", "R_hat", "N_Eff"]].to_string())
+print(key_rows[display_cols].to_string())
 
 rhat_vals = summary["R_hat"].dropna()
-ess_vals  = summary["N_Eff"].dropna()
+ess_vals  = summary[ess_col].dropna()
 print(f"\nMax R-hat: {rhat_vals.max():.4f}  (should be < 1.02)")
 print(f"Min ESS:   {ess_vals.min():.0f}  (should be > 400)")
 
@@ -143,4 +144,4 @@ for p in params:
         print(f"  {p:<15} median={vals.median():.3f}  "
               f"95%CrI [{vals.quantile(0.025):.3f}, {vals.quantile(0.975):.3f}]")
 
-print("\nDone. Share the output above so figures can be regenerated.")
+print("\nDone.")

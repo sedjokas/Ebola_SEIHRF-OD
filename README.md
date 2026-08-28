@@ -37,14 +37,14 @@ contagion, visible community deaths, health communication, and armed-conflict
 intensity C(t).
 
 Calibration uses full Bayesian MCMC (CmdStan/CmdStanPy) on daily INSP
-situation-report data (2,973 confirmed cases, SitReps 001–070). The basic
-reproduction number R₀ is derived analytically via the Next Generation Matrix
-and evaluated across all posterior draws.
+situation-report data (5,713 confirmed cases, data freeze 25 August 2026).
+The basic reproduction number R₀ is derived analytically via the Next
+Generation Matrix and evaluated across all posterior draws.
 
 > **Note on reproducibility across data freezes:** this repository has now been
-> recalibrated twice as the outbreak progressed (127 → 1,561 → 2,973 cases).
-> Several headline quantities — the homogeneous-model R₀ gap, the dominant
-> Sobol-sensitivity parameter, and the relative ranking of the S2/S3
+> recalibrated three times as the outbreak progressed (127 → 1,561 → 2,973 →
+> 5,713 cases). Several headline quantities — the homogeneous-model R₀ gap, the
+> dominant Sobol-sensitivity parameter, and the relative ranking of the S2/S3
 > counterfactual scenarios — have **not** been stable across these freezes; see
 > "Calibration results" and "Sensitivity analysis" below for the honest,
 > freeze-by-freeze picture rather than a single cherry-picked number.
@@ -71,22 +71,25 @@ Ebola_SEIHRF-OD/
 ├── acled_pipeline.py            # C(t) reconstruction from documented security events
 ├── homogeneous_r0.py            # Independent homogeneous-model R0 comparator (MLE fit)
 ├── gen_peak_timing.py           # Long-horizon peak-timing + final-size projection
-├── stan_data.json               # Prepared Stan input (2,973 cases, SitReps 001–070)
+├── stan_data.json               # Prepared Stan input (5,713 cases, data freeze 25 Aug 2026)
 ├── posterior_draws.csv          # 8 000 MCMC draws (4 chains × 2 000 samples)
+├── posterior_draws_full.csv     # Same draws plus derived R0_B, R0_N, rho_N, trM, detM
 ├── profile_likelihood_results.csv   # From the original 127-case freeze; not rerun
 ├── sensitivity_Ct_results.csv       # From the original 127-case freeze; not rerun
 ├── requirements.txt
 ├── data/
 │   ├── insp_sitrep__new_confirmed_cases__daily.csv      # zone-level; not maintained upstream past ~1 Jun
-│   ├── insp_sitrep__cumulative_confirmed_cases__daily.csv   # national, through 23 Jul 2026
-│   ├── insp_sitrep__cumulative_confirmed_deaths__daily.csv  # national, through 23 Jul 2026
+│   ├── insp_sitrep__cumulative_confirmed_cases__daily.csv   # national, through 25 Aug 2026
+│   ├── insp_sitrep__cumulative_confirmed_deaths__daily.csv  # national, through 25 Aug 2026
 │   ├── insp_sitrep__cumulative_contacts_isolated__daily.csv
 │   ├── insp_sitrep__new_contacts_listed__daily.csv
-│   └── update_2026_07_25/
+│   ├── update_2026_07_25/
+│   │   └── daily_new_cases_deaths_derived.csv   # Superseded; kept for the 71-day freeze's own reproducibility
+│   └── update_2026_08_25/
 │       └── daily_new_cases_deaths_derived.csv   # Daily new cases/deaths recovered from the
 │                                                  # cumulative series (gaps spread evenly across
 │                                                  # missing calendar days); this is the actual
-│                                                  # model input, T=71 days
+│                                                  # model input, T=104 days
 ├── imgs/
 │   ├── fig1_epidemic_opinion.{pdf,png}   # Epidemic curve + opinion dynamics
 │   ├── fig2_R0_analysis.{pdf,png}        # R₀ vs φ₀ and p_c panels
@@ -96,8 +99,8 @@ Ebola_SEIHRF-OD/
 │   ├── figS1_Rt.{pdf,png}               # Time-varying Rt
 │   ├── figS2_profile_likelihood.pdf      # Profile-likelihood identifiability (127-case freeze)
 │   ├── figS4_sensitivity_Ct.pdf          # C(t) sensitivity (12 anchors)
-│   ├── figS_ppc.{pdf,png}               # Posterior predictive check (all 71 days)
-│   ├── figS_holdout.{pdf,png}           # Hold-out validation (58/13 split)
+│   ├── figS_ppc.{pdf,png}               # Posterior predictive check (all 104 days)
+│   ├── figS_holdout.{pdf,png}           # Hold-out validation (85/19 split)
 │   └── fig_peak_timing.{pdf,png}        # Long-horizon peak-timing projection (illustrative)
 └── src/
     ├── seihrf_od_model.py       # Python ODE implementation (exploratory; stale build reference)
@@ -126,7 +129,7 @@ python run_mcmc_py.py
 ```
 
 4 chains × 2 000 warm-up + 2 000 sampling, seed=42, CmdStanPy.
-Convergence: max R̂ = 1.003, min ESS = 2 923 (excellent).
+Convergence: max R̂ = 1.001, min ESS_bulk = 2 998 (excellent).
 
 ### MCMC calibration (R)
 
@@ -252,100 +255,105 @@ det(M) = φ₀(1−φ₀)·R₀_B · [β_FR/ω_FR · burial term] ≥ 0
 
 The weighted average tr(M) equals R₀ only when β_FR = 0 (no body
 reclamation). When β_FR > 0 the exact R₀ falls below tr(M) by
-det(M)/tr(M), which is under 6% across the posterior parameter range.
+det(M)/tr(M), approximately 10% at the posterior median (up to 15%
+across the full posterior range).
 
-Group-specific reproduction numbers at posterior medians:
+Group-specific reproduction numbers at posterior medians (104-day
+freeze, through 25 Aug 2026):
 
 ```
-R₀_B ≈ 1.829   (β_I=0.929, θ_B=0.28 fixed)
-R₀_N ≈ 3.623   (β_FR=1.659, θ_N=0.038)
+R₀_B ≈ 1.629   (β_I=0.8196, θ_B=0.28 fixed)
+R₀_N ≈ 3.314   (β_FR=1.7388, θ_N=0.0352)
 ```
 
-Posterior-median R₀ ≈ **2.55** (MCMC median across all 8 000 draws).
-Plug-in estimate from parameter medians: 2.552 — negligible Jensen gap
-(<0.1%) with 2,973 confirmed cases.
+Posterior-median R₀ ≈ **2.39** (MCMC median across all 8 000 draws;
+95% CrI 2.22–2.57). Plug-in estimate from parameter medians: 2.386 —
+negligible Jensen gap (<0.1%) with 5,713 confirmed cases.
 
 A homogeneous (non-stratified) model independently fitted to the same case
-series by NegBin maximum likelihood (`homogeneous_r0.py`) yields R₀ ≈ 2.32,
-about 10% below the stratified estimate. **This gap is not a stable
+series by NegBin maximum likelihood (`homogeneous_r0.py`) yields R₀ ≈ 2.01,
+about 19% below the stratified estimate. **This gap is not a stable
 quantity** — it was 21% on the original 127-case/13-day series, closed to
-~0% on the 1,561-case/52-day series, and reopened to ~10% here. The
-takeaway is not "homogeneous models underestimate R₀ by X%" for a fixed X;
-it's that aggregate R₀ from case-count growth alone is largely insensitive
-to stratification, so the stratified model's real value is decomposing R₀
-into R₀_B vs R₀_N — information no homogeneous model can recover, regardless
-of how close its aggregate estimate happens to land.
+~0% on the 1,561-case/52-day series, reopened to ~10% on the 2,973-case/71-day
+series, and has now widened further to ~19% on this 5,713-case/104-day
+series. The takeaway is not "homogeneous models underestimate R₀ by X%" for
+a fixed X; it's that aggregate R₀ from case-count growth alone is largely
+insensitive to stratification, so the stratified model's real value is
+decomposing R₀ into R₀_B vs R₀_N — information no homogeneous model can
+recover, regardless of how close its aggregate estimate happens to land.
 
 ---
 
 ## Calibration results
 
-Data: 2,973 confirmed cases, INRB-UMIE/Ebola_DRC_2026 build `fe2c943`
-(SitReps 001–070, data freeze 23 July 2026).
+Data: 5,713 confirmed cases, INRB-UMIE/Ebola_DRC_2026 build `1819da2`
+(data freeze 25 August 2026, accessed 27 August 2026).
 
 | Parameter | Posterior median | 95% CrI | Status |
 |---|---|---|---|
-| β_I (community transmission, day⁻¹) | 0.929 | 0.86–1.00 | Data-informed |
-| β_FR (reclaimed-body transmission, day⁻¹) | 1.659 | 1.16–2.14 | Prior-dominated |
-| φ₀ (initial scepticism) | 0.459 | 0.36–0.56 | Data-informed |
-| γ_comm (communication rate, day⁻¹) | 0.073 | 0.039–0.098 | Data-informed |
+| β_I (community transmission, day⁻¹) | 0.8196 | 0.77–0.87 | Data-informed (more modestly than previously) |
+| β_FR (reclaimed-body transmission, day⁻¹) | 1.7388 | 1.24–2.24 | Prior-dominated |
+| φ₀ (initial scepticism) | 0.5097 | 0.41–0.61 | Data-informed |
+| γ_comm (communication rate, day⁻¹) | 0.0832 | 0.057–0.099 | Data-informed |
+| α (social contagion, day⁻¹) | 0.0176 | 0.010–0.042 | Data-informed (posterior SD ~30% of prior SD) |
+| δ_C (conflict amplification) | 0.0115 | 0.010–0.019 | Materially updated but concentrates near its lower boundary (0.01) — possible constraint artifact |
 | θ_N (sceptic hospitalisation rate, day⁻¹) | prior | — | Prior-dominated |
-| α, δ_C | prior | — | Prior-dominated |
-| **R₀** | **2.55** | **2.36–2.76** | Derived |
+| **R₀** | **2.39** | **2.22–2.57** | Derived |
 
-Convergence: max R̂ = 1.003, min ESS = 2 923 (4 chains × 2 000 draws each).
+Convergence: max R̂ = 1.001, min ESS_bulk = 2 998, no divergent
+transitions (4 chains × 2 000 draws each).
 
-β_FR, α, and δ_C yield flat profile-likelihood curves (non-identifiable
-at the 95% level; this was established on the original 127-case freeze and
-not rerun since — see `profile_likelihood.py`). β_I, φ₀, and (as of this
-freeze) γ_comm are the parameters that update substantially from their
-priors. All headline conclusions hold across the full
-prior support of β_FR (see `bfr_robustness.py` and Supp Table S1).
+β_FR and θ_N remain prior-dominated. α and δ_C have moved from
+prior-dominated to materially updated at this freeze (see caveat on δ_C's
+boundary concentration above). All headline conclusions hold across the
+full prior support of β_FR (see `bfr_robustness.py` and Supp Table S1).
 
-### Results across all three data freezes (127 → 1,561 → 2,973 cases)
+### Results across all four data freezes (127 → 1,561 → 2,973 → 5,713 cases)
 
 Reported here so nobody mistakes a single freeze's number for a stable
 property of the outbreak:
 
-| Quantity | 13-day freeze | 52-day freeze | 71-day freeze (current) |
-|---|---|---|---|
-| Confirmed cases | 127 | 1,561 | 2,973 |
-| R₀ (posterior median) | 2.17 | 2.67 | 2.55 |
-| Homogeneous-model R₀ gap | +21% | ~0% | +10% |
-| Dominant Sobol parameter | β_I (S_i=0.60) | γ_comm (S_i=0.38) | β_I (S_i=0.34) |
-| S3 (body reclamation) rank among S1/S2/S3 | largest | 2nd (barely) | smallest |
-| S1 (communication) rank among S1/S2/S3 | 2nd | largest | largest |
+| Quantity | 13-day freeze | 52-day freeze | 71-day freeze | 104-day freeze (current) |
+|---|---|---|---|---|
+| Confirmed cases | 127 | 1,561 | 2,973 | 5,713 |
+| R₀ (posterior median) | 2.17 | 2.67 | 2.55 | 2.39 |
+| Homogeneous-model R₀ gap | +21% | ~0% | +10% | +19% |
+| Dominant Sobol parameter | β_I (S_i=0.60) | γ_comm (S_i=0.38) | β_I (S_i=0.34) | β_I (S_i=0.52) |
+| S3 (body reclamation) rank among S1/S2/S3 | largest | 2nd (barely) | smallest | 2nd (barely) |
+| S1 (communication) rank among S1/S2/S3 | 2nd | largest | largest | largest |
 
 The homogeneous-gap and Sobol-dominance columns track how far the day-90
 scenario-projection horizon extrapolates beyond whatever the calibration
 window happens to end at — not a fixed property of the transmission
-dynamics. S1 (enhanced communication) is the one ranking that has held at
-every freeze but the first.
+dynamics. At this freeze the day-90 evaluation window falls entirely
+*within* the 104-day calibration window (no extrapolation at all), which
+plausibly explains why β_I now dominates by its widest margin yet. S1
+(enhanced communication) is the one ranking that has held at every freeze
+but the first.
 
 ---
 
 ## Counterfactual scenarios
 
-From the calibrated posterior (2,973 cases; cumulative deaths at day 90):
+From the calibrated posterior (5,713 cases; cumulative deaths at day 90):
 
 | | Intervention | Deaths averted (median; 95% CrI) |
 |---|---|---|
-| S1 | Double communication rate from day 14 (γ_comm × 2) | **32%** (21–49%) |
-| S2 | Halve conflict intensity throughout (C(t) × 0.5) | **23%** (16–39%) |
-| S3 | Eliminate body reclamation (β_FR = 0) | **18%** (10–36%) |
-| S1+S3 | Combined | **41%** (27–61%) |
+| S1 | Double communication rate from day 14 (γ_comm × 2) | **24%** (17–34%) |
+| S2 | Halve conflict intensity throughout (C(t) × 0.5) | **17%** (13–24%) |
+| S3 | Eliminate body reclamation (β_FR = 0) | **18%** (11–28%) |
+| S1+S3 | Combined | **34%** (26–46%) |
 
 **Primary inference:** S1 (enhanced communication) has been the largest
 single-intervention effect at every data freeze but the first; the S2/S3
 ranking has flipped between freezes (see the cross-freeze table above), so
 we report it as unstable rather than asserting a fixed ordering. Absolute
 death projections depend on extrapolation beyond the calibration window —
-now a much smaller extrapolation (day 90 is only 21 days past the day-69
-end of calibration) than at the original 13-day freeze, hence the smaller
-percentages here despite the larger population now known to be at risk.
-Sweeping β_FR across its prior 5th–95th percentile [1.19, 2.01] day⁻¹
-keeps S3 deaths averted in the range 12–20% and R₀_N > R₀_B at all
-values tested.
+at this freeze there is essentially none (day 90 falls inside the 104-day
+calibration window), hence the smaller percentages here despite the larger
+population now known to be at risk. Sweeping β_FR across its prior
+5th–95th percentile [1.19, 2.01] day⁻¹ keeps S3 deaths averted in the
+range 12–19% and R₀_N > R₀_B at all values tested.
 
 ---
 
@@ -355,23 +363,25 @@ Global first-order Sobol sensitivity indices for cumulative deaths at day 90:
 
 | Parameter | S_i | Driver role |
 |---|---|---|
-| β_I (community transmission) | **0.34** | Primary |
-| γ_comm (communication rate) | 0.27 | Primary (narrowly behind β_I) |
-| δ_C (conflict amplification) | 0.10 | Secondary |
-| α (social contagion) | 0.09 | Secondary |
-| β_FR, φ₀, θ_N | ≤ 0.02 each | Minor |
+| β_I (community transmission) | **0.52** | Primary (widest margin yet) |
+| γ_comm (communication rate) | 0.19 | Secondary |
+| α (social contagion) | 0.08 | Minor secondary |
+| φ₀ (initial scepticism) | 0.06 | Minor secondary |
+| δ_C (conflict amplification) | 0.04 | Minor |
+| θ_N, β_FR | ≤ 0.03 each | Minor |
 
 β_I and γ_comm have swapped the #1/#2 ranking at every successive data
-freeze (β_I dominant at 13 days, γ_comm dominant at 52 days, β_I dominant
-again at 71 days) — see the cross-freeze table above. β_FR remains
-prior-dominated regardless; its low Sobol index reflects the current
-identifiability limit, not a low physical importance.
+freeze (β_I dominant at 13 and 71 days, γ_comm dominant at 52 days, β_I
+dominant by its widest margin yet at 104 days) — see the cross-freeze
+table above. β_FR remains prior-dominated regardless; its low Sobol index
+reflects the current identifiability limit, not a low physical importance.
 
 C(t) sensitivity: perturbing each of the twelve conflict-intensity anchors
-independently by ±30% changes cumulative 90-day deaths by at most **2.7%**
+independently by ±30% changes cumulative 90-day deaths by at most **1.9%**
 (Anchor 8, partial de-escalation, days 31–44 — the longest-duration anchor
 prior to the renewed-disruption period). All anchors are well inside the
-±10% materiality threshold.
+±10% materiality threshold. δ_C now accounts for only 4% of Sobol output
+variance (down from 10% previously).
 
 ---
 
@@ -379,34 +389,32 @@ prior to the renewed-disruption period). All anchors are well inside the
 
 ### Posterior predictive check (full dataset)
 
-Using all 8 000 posterior draws on the 71-day observed series:
+Using all 8 000 posterior draws on the 104-day observed series:
 
 | | 50% CrI | 95% CrI |
 |---|---|---|
-| Coverage (71 days) | 45/71 (63%) | 63/71 (89%) |
+| Coverage (104 days) | 54/104 (52%) | 93/104 (89%) |
 
-### Hold-out validation — 58/13 split
+### Hold-out validation — 85/19 split
 
-Calibration on days 1–58 (14 May–10 Jul 2026, 1,875 cases) with days
-59–71 (11–23 Jul, 1,099 cases) held out as the validation set. The split
-places both documented conflict peaks and the mid-July strike/vandalism
-anchors in calibration and tests forecast accuracy on the
-Muchanga-attack / multi-zone-resistance regime.
+Calibration on days 1–85 (14 May–6 Aug 2026, 4,094 cases) with days
+86–104 (7–25 Aug, 1,623 cases) held out as the validation set. The split
+places all twelve documented conflict anchors in calibration and tests
+forecast accuracy on the most recent three-week regime.
 
-Calibration posterior (T=58): R₀=2.63 [2.40, 2.87], max R̂=1.002,
-min ESS=2 784 — consistent with full-data posterior.
+Calibration posterior (T=85): R₀=2.47 [2.32, 2.63], max R̂=1.001,
+min ESS_bulk=2 943 — consistent with full-data posterior.
 
 | | 50% CrI | 95% CrI |
 |---|---|---|
-| Calibration coverage (58 days) | 30/58 (52%) | 50/58 (86%) |
-| **Forecast coverage (13 held-out days)** | 2/13 (15%) | **13/13 (100%)**  |
+| Calibration coverage (85 days) | 52/85 (61%) | 76/85 (89%) |
+| **Forecast coverage (19 held-out days)** | 1/19 (5%) | **19/19 (100%)**  |
 
-All 13 held-out observations (11–23 Jul) fall within the 95% credible
-interval of the out-of-sample forecast, though only 2/13 fall within the
+All 19 held-out observations (7–25 Aug) fall within the 95% credible
+interval of the out-of-sample forecast, though only 1/19 falls within the
 tighter 50% interval — the model gets the epidemic regime right but not
-the precise day-to-day fluctuation, including a large multi-day reporting
-catch-up around 21–22 July that no smooth deterministic trajectory would
-be expected to hit exactly.
+the precise day-to-day fluctuation, consistent with the volatility
+already visible in the observed series.
 
 ---
 
@@ -415,22 +423,23 @@ be expected to hit exactly.
 Epidemiological input: INSP daily situation reports, sourced from
 [INRB-UMIE/Ebola\_DRC\_2026](https://github.com/INRB-UMIE/Ebola_DRC_2026)
 (repository since renamed `INRB-UMIE/BDBV2026-Data`; old URLs redirect),
-build `fe2c943` (data freeze 23 July 2026; accessed 26 July 2026).
+build `1819da2` (data freeze 25 August 2026; accessed 27 August 2026).
 
 ```
-SitReps included: 001–070 (SitReps 003, 029, 043, 045, 059, 061, 063, 068 missing)
-Confirmed cases at calibration: 2,973
-Confirmed deaths at calibration: 1,309
-Health zones with a confirmed case: 48 (51 under active surveillance)
-Provinces affected: Ituri, North Kivu, Haut-Uele, Tshopo, South Kivu
-Catchment population (N_pop, sum of WorldPop across the 48 zones): 10,877,533
+Confirmed cases at calibration: 5,713
+Confirmed deaths at calibration: 2,755
+Health zones with a confirmed case: 58
+Provinces affected: Ituri, North Kivu, Tshopo, Haut-Uele, Bas-Uele, South Kivu
+  (Bas-Uele newly attributed this freeze -- 3 low-count zones, treat as
+  requiring confirmation rather than established spillover, see manuscript)
+Catchment population (N_pop, sum of WorldPop across the 58 zones): 12,996,531
 Files:
   insp_sitrep__new_confirmed_cases__daily.csv        (zone-level; stale past ~1 Jun upstream)
   insp_sitrep__cumulative_confirmed_cases__daily.csv  (national, current)
   insp_sitrep__cumulative_confirmed_deaths__daily.csv (national, current)
   insp_sitrep__cumulative_contacts_isolated__daily.csv
   insp_sitrep__new_contacts_listed__daily.csv
-  update_2026_07_25/daily_new_cases_deaths_derived.csv  (actual T=71 model input)
+  update_2026_08_25/daily_new_cases_deaths_derived.csv  (actual T=104 model input)
 ```
 
 Conflict-intensity function C(t): piecewise step function anchored to
@@ -473,11 +482,12 @@ WHO situation reports:
 }
 ```
 
-Data: INRB-UMIE, *Ebola\_DRC\_2026*, build `fe2c943`, GitHub, 2026.
+Data: INRB-UMIE, *Ebola\_DRC\_2026*, build `1819da2`, GitHub, 2026.
 [https://github.com/INRB-UMIE/Ebola\_DRC\_2026](https://github.com/INRB-UMIE/Ebola_DRC_2026)
 
-Code archive: Kasereka SK, Kyamakya K, Muyembe JJT. *SEIHRF-OD v1.0.0*.
+Code archive: Kasereka SK, Kyamakya K, Muyembe JJT. *SEIHRF-OD*.
 Zenodo, 2026. [https://doi.org/10.5281/zenodo.20453103](https://doi.org/10.5281/zenodo.20453103)
+(concept DOI; always resolves to the latest archived version).
 
 ---
 

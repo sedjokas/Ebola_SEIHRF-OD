@@ -5,7 +5,7 @@ Generates Figure 4 for the SEIHRF-OD manuscript:
   Panel A: Tornado plot of first-order Sobol sensitivity indices for D(90)
   Panel B: Prior vs posterior density for β_FR, φ₀, γ_comm, α
 
-Uses updated posterior-median parameters (MCMC on 2,973 cases, SitReps 001-070).
+Uses updated posterior-median parameters (MCMC on 5,713 cases, data freeze 25 Aug 2026).
 """
 
 from __future__ import annotations
@@ -21,16 +21,16 @@ from scipy.stats import norm, gaussian_kde
 from SALib.sample import saltelli
 from SALib.analyze import sobol as sobol_analyze
 
-OUTDIR = "/Users/selainkaserekakabunga/Documents/Lancet_Paper/imgs"
 ROOT   = "/Users/selainkaserekakabunga/Documents/Lancet_Paper"
+OUTDIR = ROOT + "/imgs"
 
-# ── Posterior-median parameters (updated) ─────────────────────────────────────
+# ── Posterior-median parameters (updated, 104-day freeze through 25 Aug 2026) ─
 P_MED = dict(
-    N=10_877_533, beta_I=0.9294, beta_H=0.06, beta_FR=1.6591, beta_FS=0.002,
-    kappa=1/9, theta_B=0.28, theta_N=0.0375, delta_I=0.18, delta_H=0.12,
+    N=12_996_531, beta_I=0.8196, beta_H=0.06, beta_FR=1.7388, beta_FS=0.002,
+    kappa=1/9, theta_B=0.28, theta_N=0.0352, delta_I=0.18, delta_H=0.12,
     gamma_I=0.09, gamma_H=0.10, omega_FR=0.80, omega_FS=3.00,
-    psi_I=0.45, psi_H=0.15, alpha=0.0199, gamma_comm=0.0734, delta_C=0.0140,
-    beta_D=8.00, phi0=0.4593,
+    psi_I=0.45, psi_H=0.15, alpha=0.0176, gamma_comm=0.0832, delta_C=0.0115,
+    beta_D=8.00, phi0=0.5097,
 )
 
 T_MAX = 90
@@ -112,13 +112,13 @@ problem = {
     "names": [r"$\beta_{FR}$", r"$\phi_0$", r"$\beta_I$",
               r"$\gamma_{\rm comm}$", r"$\delta_C$", r"$\alpha$", r"$\theta_N$"],
     "bounds": [
-        [1.164, 2.144],    # beta_FR: 95% CrI
-        [0.360, 0.557],    # phi0: 95% CrI
-        [0.864, 0.997],    # beta_I: 95% CrI
-        [0.039, 0.098],    # gamma_comm: 95% CrI
-        [0.010, 0.032],    # delta_C: 95% CrI
-        [0.010, 0.050],    # alpha: 95% CrI
-        [0.022, 0.053],    # theta_N: 95% CrI
+        [1.2415, 2.2370],  # beta_FR: 95% CrI
+        [0.4143, 0.6102],  # phi0: 95% CrI
+        [0.7712, 0.8683],  # beta_I: 95% CrI
+        [0.0565, 0.0990],  # gamma_comm: 95% CrI
+        [0.0101, 0.0186],  # delta_C: 95% CrI
+        [0.0103, 0.0423],  # alpha: 95% CrI
+        [0.0197, 0.0507],  # theta_N: 95% CrI
     ],
 }
 
@@ -191,7 +191,7 @@ legend_patches = [
 ax1.legend(handles=legend_patches, fontsize=8, loc="lower right")
 
 # ── Panel B: Prior vs Posterior ────────────────────────────────────────────────
-draws_df = pd.read_csv(os.path.join(ROOT, "posterior_draws.csv"))
+draws_df = pd.read_csv(os.path.join(ROOT, "posterior_draws_full.csv"))
 
 from scipy.stats import norm as sp_norm
 from scipy.stats import gamma as sp_gamma_dist
@@ -200,7 +200,7 @@ from scipy.stats import gamma as sp_gamma_dist
 panel_params = [
     (r"$\beta_I$",           "beta_I",     "normal",  0.75, 0.08, [0.40, 1.15],  C_CORAL),
     (r"$\beta_{FR}$",        "beta_FR",    "normal",  1.60, 0.25, [0.80, 2.60],  C_BLUE),
-    (r"$\phi_0$",            "phi0",       "normal",  0.38, 0.05, [0.20, 0.58],  "#6BAF8A"),
+    (r"$\phi_0$",            "phi0",       "normal",  0.38, 0.05, [0.20, 0.65],  "#6BAF8A"),
     (r"$\gamma_{\rm comm}$", "gamma_comm", "gamma",   2.0,  1/80.,[0.0,  0.10],  "#9966CC"),
 ]
 

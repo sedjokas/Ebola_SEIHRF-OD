@@ -1,6 +1,6 @@
 {
   "title": "SEIHRF-OD: Code, data, and figures for 'Political distrust, armed conflict, and body reclamation drive Ebola transmission dynamics in eastern DRC'",
-  "description": "Reproducibility package for the SEIHRF-OD model paper submitted to The Lancet Infectious Diseases (2026). Contains Stan/Python/R calibration code, INSP sitrep data (INRB-UMIE/Ebola_DRC_2026, build fe2c943), posterior draws (2,973 confirmed cases, SitReps 001-070), all publication figures, sensitivity analysis, hold-out validation, posterior predictive checks, and a long-horizon peak-timing projection. Note: results have been recalibrated twice as the outbreak progressed (127 -> 1,561 -> 2,973 cases); the README documents which headline quantities were stable across freezes and which were not.",
+  "description": "Reproducibility package for the SEIHRF-OD model paper, submitted for peer review (2026). Contains Stan/Python calibration code, INSP sitrep data (INRB-UMIE/Ebola_DRC_2026, build 1819da2), posterior draws (5,713 confirmed cases, data freeze 25 August 2026), all publication figures, sensitivity analysis, hold-out validation, posterior predictive checks, and a long-horizon peak-timing projection. Note: results have been recalibrated three times as the outbreak progressed (127 -> 1,561 -> 2,973 -> 5,713 cases); the README documents which headline quantities were stable across freezes and which were not.",
   "upload_type": "software",
   "access_right": "open",
   "license": "MIT",

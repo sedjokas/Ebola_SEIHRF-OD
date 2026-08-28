@@ -37,16 +37,19 @@ from scipy.integrate import solve_ivp
 from scipy.stats import nbinom
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-LANCET      = "/Users/selainkaserekakabunga/Documents/Lancet_Paper"
-DATA        = os.path.join(LANCET, "data")
-STAN_FILE   = os.path.join(LANCET, "seihrf_od.stan")
-CALIB_CSV   = os.path.join(LANCET, "posterior_calib.csv")
-OUT_PDF     = os.path.join(LANCET, "imgs", "figS_holdout.pdf")
-OUT_PNG     = os.path.join(LANCET, "imgs", "figS_holdout.png")
+BASE        = "/Users/selainkaserekakabunga/Documents/Lancet_Paper"
+LANCET      = BASE
+DATA        = os.path.join(BASE, "data")
+STAN_FILE   = os.path.join(BASE, "seihrf_od.stan")
+CALIB_CSV   = os.path.join(BASE, "posterior_calib.csv")
+OUT_PDF     = os.path.join(BASE, "imgs", "figS_holdout.pdf")
+OUT_PNG     = os.path.join(BASE, "imgs", "figS_holdout.png")
 
-T_CALIB = 58   # calibration days (days 1-58 = 14 May-10 Jul)
-T_FULL  = 71   # total days in dataset
-T_VALID = T_FULL - T_CALIB  # = 13 validation days
+T_CALIB = 85   # calibration days (days 1-85 = 14 May-6 Aug; same ~82% proportion
+               # as the previous 58/71 split, still includes all 12 documented
+               # conflict anchors, day67 = anchor 12 start)
+T_FULL  = 104  # total days in dataset (14 May-25 Aug 2026)
+T_VALID = T_FULL - T_CALIB  # = 19 validation days
 
 # ── Fixed parameters (matches seihrf_od.stan transformed parameters) ──────────
 FIXED = dict(
@@ -63,7 +66,7 @@ FIXED = dict(
     omega_FR = 0.80,
     omega_FS = 3.00,
     beta_D   = 8.00,
-    N_pop    = 10_877_533.0,
+    N_pop    = 12_996_531.0,
     seed_total = 8.0,
 )
 # Twelve conflict anchors: [start_day, level] x 12. Day 1 = 14 May 2026.
@@ -138,7 +141,7 @@ def sample_negbin2(mu: float, phi: float, rng: np.random.Generator) -> int:
 # ── 1. Load full data ─────────────────────────────────────────────────────────
 print("Loading data …")
 derived = pd.read_csv(
-    os.path.join(DATA, "update_2026_07_25", "daily_new_cases_deaths_derived.csv"),
+    os.path.join(DATA, "update_2026_08_25", "daily_new_cases_deaths_derived.csv"),
     parse_dates=["date"],
 )
 y_all   = derived["new_confirmed_cases_est"].round().astype(int).values  # shape (71,)
@@ -167,7 +170,7 @@ else:
     stan_data_calib = {
         "T"           : T_CALIB,
         "y_cases"     : y_calib,
-        "N_pop"       : 8_314_486.0,
+        "N_pop"       : 12_996_531.0,
         "phi0_obs"    : 0.38,
         "phi0_obs_sd" : 0.05,
         "x_r_conflict": X_R,

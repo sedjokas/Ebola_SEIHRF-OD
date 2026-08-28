@@ -2,7 +2,7 @@
 compute_scenarios.py
 ====================
 Computes S1/S2/S3/S1+S3 scenario death-averted percentages and R0 values
-using the updated MCMC posterior medians (2,973-case run, SitReps 001-070).
+using the updated MCMC posterior medians (5,713-case run, data freeze 25 Aug 2026).
 
 Also computes MCMC-based scenario percentages from posterior_draws.csv.
 """
@@ -12,16 +12,16 @@ import numpy as np
 import pandas as pd
 from scipy.integrate import solve_ivp
 
-# ── Updated posterior-median parameters (MCMC on 127 cases) ──────────────────
+# ── Updated posterior-median parameters (MCMC on 104-day series, freeze 25 Aug 2026) ──
 P = dict(
-    N          = 10_877_533,
-    beta_I     = 0.9294,
+    N          = 12_996_531,
+    beta_I     = 0.8196,
     beta_H     = 0.06,
-    beta_FR    = 1.6591,
+    beta_FR    = 1.7388,
     beta_FS    = 0.002,
     kappa      = 1.0 / 9,
     theta_B    = 0.28,
-    theta_N    = 0.0375,
+    theta_N    = 0.0352,
     delta_I    = 0.18,
     delta_H    = 0.12,
     gamma_I    = 0.09,
@@ -30,11 +30,11 @@ P = dict(
     omega_FS   = 3.00,
     psi_I      = 0.45,
     psi_H      = 0.15,
-    alpha      = 0.0199,
-    gamma_comm = 0.0734,
-    delta_C    = 0.0140,
+    alpha      = 0.0176,
+    gamma_comm = 0.0832,
+    delta_C    = 0.0115,
     beta_D     = 8.00,
-    phi0       = 0.4593,
+    phi0       = 0.5097,
 )
 
 T_MAX = 90
@@ -180,7 +180,7 @@ print(f"S1+S3 combined:      D={D_S13:.0f}  → {s13:.0f}% averted")
 # ── 2. MCMC-based scenario percentages from posterior_draws.csv ───────────────
 print("\n=== MCMC posterior scenario percentages (from posterior_draws.csv) ===")
 
-DRAWS_PATH = "/Users/selainkaserekakabunga/Documents/Lancet_Paper/posterior_draws.csv"
+DRAWS_PATH = "/Users/selainkaserekakabunga/Documents/Lancet_Paper/posterior_draws_full.csv"
 draws_df = pd.read_csv(DRAWS_PATH)
 print(f"Loaded {len(draws_df)} posterior draws")
 

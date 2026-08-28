@@ -26,26 +26,26 @@ import matplotlib.patches as mpatches
 from scipy.integrate import solve_ivp
 from scipy.ndimage import uniform_filter1d
 
-OUTDIR   = "/Users/selainkaserekakabunga/Documents/Lancet_Paper/imgs"
-DATA_DIR = "/Users/selainkaserekakabunga/Documents/Lancet_Paper/data"
-ROOT_DIR = "/Users/selainkaserekakabunga/Documents/Lancet_Paper"
+BASE     = "/Users/selainkaserekakabunga/Documents/Lancet_Paper"
+OUTDIR   = BASE + "/imgs"
+DATA_DIR = BASE + "/data"
+ROOT_DIR = BASE
 
 # ── Correct Table 1 posterior-median parameters ───────────────────────────────
 
-N0   = 10_877_533  # sum of WorldPop GRID3 v4.4 counts, 48 confirmed-case zones
-# Updated posterior medians — MCMC on 2,973 confirmed cases, SitReps 001-070
-# (INRB-UMIE/Ebola_DRC_2026 build fb3eca2, data freeze 6 July 2026)
-PHI0 = 0.4593    # initial sceptic fraction
+N0   = 12_996_531  # sum of WorldPop GRID3 v4.4 counts, 58 confirmed-case zones
+# Updated posterior medians — MCMC on 104-day series (through 25 Aug 2026)
+PHI0 = 0.5097    # initial sceptic fraction
 
 P = dict(
     N          = N0,
-    beta_I     = 0.9294,  # community transmission rate (day⁻¹)
+    beta_I     = 0.8196,  # community transmission rate (day⁻¹)
     beta_H     = 0.06,    # hospital/ETC transmission rate
-    beta_FR    = 1.6591,  # reclaimed-body transmission rate (day⁻¹)
+    beta_FR    = 1.7388,  # reclaimed-body transmission rate (day⁻¹)
     beta_FS    = 0.002,   # safe-burial transmission rate (≈ 0)
     kappa      = 1.0/9,   # incubation rate (9-day BDBV mean)
     theta_B    = 0.28,    # hospitalisation rate — Believers
-    theta_N    = 0.0375,  # hospitalisation rate — Sceptics
+    theta_N    = 0.0352,  # hospitalisation rate — Sceptics
     delta_I    = 0.18,    # community death rate
     delta_H    = 0.12,    # hospital death rate
     gamma_I    = 0.09,    # community recovery rate
@@ -54,9 +54,9 @@ P = dict(
     omega_FS   = 3.00,    # safe-burial removal rate (day⁻¹)
     psi_I      = 0.45,    # fraction of sceptic community deaths reclaimed
     psi_H      = 0.15,    # fraction of sceptic hospital deaths reclaimed
-    alpha      = 0.0199,  # social contagion rate (B to N)
-    gamma_comm = 0.0734,  # health communication rate (N to B)
-    delta_C    = 0.0140,  # conflict amplification coefficient
+    alpha      = 0.0176,  # social contagion rate (B to N)
+    gamma_comm = 0.0832,  # health communication rate (N to B)
+    delta_C    = 0.0115,  # conflict amplification coefficient
     beta_D     = 8.00,    # visible-death distrust coefficient
     phi0       = PHI0,
 )
@@ -190,7 +190,7 @@ def run_model(p, gc_scale=1.0, bFR_scale=1.0, C_scale=1.0, gc_start=None):
 
 def posterior_draws(n: int = 100, seed: int = 42) -> list[dict]:
     rng = np.random.default_rng(seed)
-    real_draws = pd.read_csv(os.path.join(ROOT_DIR, "posterior_draws.csv"))
+    real_draws = pd.read_csv(os.path.join(ROOT_DIR, "posterior_draws_full.csv"))
     idx = rng.choice(len(real_draws), size=n, replace=False)
     sample = real_draws.iloc[idx]
     draws = []
@@ -342,7 +342,7 @@ def figure1(draws: list[dict], cumcases, rc_data):
 
     ax1.scatter(days_obs, daily_new,
                 c=C_PAL["coral"], s=32, zorder=5, edgecolors="white", lw=0.5,
-                label="INSP confirmed cases (SitReps 001-070)")
+                label="INSP confirmed cases (through 25 Aug 2026)")
 
     # C(t) peak-intensity windows (Rwampara/Mongbwalu; Oicha/Mbau massacre)
     for w_start, w_end in CT_PEAK_WINDOWS:
@@ -404,7 +404,7 @@ def figure1(draws: list[dict], cumcases, rc_data):
     # and 5 respectively; here the y-axis is capped to the observed-data
     # range so the calibration-window fit remains legible, and the CrI
     # band is allowed to clip at the top of the panel.
-    FIG1_XMAX = 80
+    FIG1_XMAX = 90
     for ax in [ax1, ax2, ax3]:
         ax.set_xlim(0, FIG1_XMAX)
         ax.tick_params(labelsize=9)
@@ -416,7 +416,7 @@ def figure1(draws: list[dict], cumcases, rc_data):
 
 # ── Figure 3: Counterfactual scenarios ────────────────────────────────────────
 # Scenario percentages from MCMC posterior analysis (manuscript Table 2)
-MCMC_PCT = {"S1": 32, "S2": 23, "S3": 18, "S1+S3": 41}
+MCMC_PCT = {"S1": 24, "S2": 17, "S3": 18, "S1+S3": 34}
 
 SCENARIOS = [
     ("Baseline",                           dict()),

@@ -5,7 +5,7 @@ Generates Figure 2 for the SEIHRF-OD manuscript:
   Panel A: R₀ as a function of initial skepticism φ₀ for three β_FR/β_I ratios
   Panel B: Critical vaccination coverage p_c = 1 - 1/R₀ under same scenarios
 
-Uses updated posterior-median parameters (MCMC on 2,973 cases, SitReps 001-070).
+Uses updated posterior-median parameters (MCMC on 5,713 cases, data freeze 25 Aug 2026).
 Vertical dotted line at φ̂₀ = 0.392; shaded band = 95% CrI [0.294, 0.490].
 """
 
@@ -19,12 +19,12 @@ import matplotlib.patches as mpatches
 
 OUTDIR = "/Users/selainkaserekakabunga/Documents/Lancet_Paper/imgs"
 
-# ── Updated posterior-median parameters ───────────────────────────────────────
-BETA_I   = 0.9294
+# ── Updated posterior-median parameters (104-day freeze, through 25 Aug 2026) ─
+BETA_I   = 0.8196
 BETA_H   = 0.06
 KAPPA    = 1.0 / 9
 THETA_B  = 0.28
-THETA_N  = 0.0375
+THETA_N  = 0.0352
 DELTA_I  = 0.18
 DELTA_H  = 0.12
 GAMMA_I  = 0.09
@@ -33,10 +33,10 @@ OMEGA_FR = 0.80
 PSI_I    = 0.45
 PSI_H    = 0.15
 
-# Posterior φ₀ (updated from MCMC on 2,973 cases)
-PHI0_MED = 0.4593
-PHI0_LO  = 0.3605   # 95% CrI lower
-PHI0_HI  = 0.5566   # 95% CrI upper
+# Posterior φ₀ (updated from MCMC on 104-day series)
+PHI0_MED = 0.5097
+PHI0_LO  = 0.4143   # 95% CrI lower
+PHI0_HI  = 0.6102   # 95% CrI upper
 
 
 # ── Analytical R₀ formula ─────────────────────────────────────────────────────

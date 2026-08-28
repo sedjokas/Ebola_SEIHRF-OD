@@ -22,11 +22,12 @@ from scipy.integrate import solve_ivp
 from scipy.stats import nbinom
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-LANCET = "/Users/selainkaserekakabunga/Documents/Lancet_Paper"
-DRAWS  = os.path.join(LANCET, "posterior_draws.csv")
-DATA   = os.path.join(LANCET, "data")
-OUT_PDF = os.path.join(LANCET, "imgs", "figS_ppc.pdf")
-OUT_PNG = os.path.join(LANCET, "imgs", "figS_ppc.png")
+BASE = "/Users/selainkaserekakabunga/Documents/Lancet_Paper"
+LANCET = BASE
+DRAWS  = os.path.join(BASE, "posterior_draws_full.csv")
+DATA   = os.path.join(BASE, "data")
+OUT_PDF = os.path.join(BASE, "imgs", "figS_ppc.pdf")
+OUT_PNG = os.path.join(BASE, "imgs", "figS_ppc.png")
 
 # ── Fixed parameters (Stan transformed parameters) ────────────────────────────
 FIXED = dict(
@@ -43,7 +44,7 @@ FIXED = dict(
     omega_FR = 0.80,
     omega_FS = 3.00,
     beta_D   = 8.00,
-    N_pop    = 10_877_533.0,
+    N_pop    = 12_996_531.0,
     seed_total = 8.0,
 )
 
@@ -131,7 +132,7 @@ def sample_negbin2(mu: float, phi: float, rng: np.random.Generator) -> int:
 # ── Load data ─────────────────────────────────────────────────────────────────
 print("Loading case data …")
 derived = pd.read_csv(
-    os.path.join(DATA, "update_2026_07_25", "daily_new_cases_deaths_derived.csv"),
+    os.path.join(DATA, "update_2026_08_25", "daily_new_cases_deaths_derived.csv"),
     parse_dates=["date"],
 )
 y_obs   = derived["new_confirmed_cases_est"].round().astype(int).values  # shape (52,)
@@ -239,8 +240,8 @@ ax.set_xticklabels([date_labels[i] for i in tick_idx], rotation=45, ha="right", 
 ax.set_xlabel("Date (INSP SitRep)", fontsize=10)
 ax.set_ylabel("Daily confirmed cases", fontsize=10)
 ax.set_title(
-    "Posterior predictive check — SEIHRF-OD (INRB-UMIE/Ebola_DRC_2026, build fe2c943)\n"
-    f"Calibration: all {T} days (14 May–23 Jul 2026, {N_DRAWS} posterior draws)",
+    "Posterior predictive check — SEIHRF-OD (INRB-UMIE/Ebola_DRC_2026, updated freeze)\n"
+    f"Calibration: all {T} days (14 May-25 Aug 2026, {N_DRAWS} posterior draws)",
     fontsize=9,
 )
 ax.legend(fontsize=8, loc="upper right")

@@ -8,9 +8,9 @@
 // ----------------------
 // Kasereka et al., "Political distrust, armed conflict, and body reclamation
 // drive Ebola transmission dynamics in eastern DRC: a coupled
-// epidemic-opinion dynamics model (SEIHRF-OD)", submitted to
-// The Lancet Infectious Diseases, 2026.
-// Data: INRB-UMIE/Ebola_DRC_2026, build fe2c943.
+// epidemic-opinion dynamics model (SEIHRF-OD)", submitted for peer
+// review, 2026.
+// Data: INRB-UMIE/Ebola_DRC_2026, build 1819da2.
 //
 // State vector (12 compartments)
 // -------------------------------
@@ -36,10 +36,12 @@
 // Calibration targets
 // -------------------
 //   Updated on each data refresh; see run_mcmc_py.py output / manuscript
-//   Table 1 for current posterior medians and 95% CrI. As of the SitRep 70
-//   freeze (23 Jul 2026, N=2,973 confirmed cases, T=71 days): beta_I,
-//   phi0, and gamma_comm update substantially from their priors; beta_FR,
-//   alpha, delta_C, theta_N remain largely prior-dominated.
+//   Supplementary Table S2 for current posterior medians and 95% CrI. As of
+//   the 25 Aug 2026 freeze (build 1819da2, N=5,713 confirmed cases, T=104
+//   days): phi0, gamma_comm, alpha, and (more modestly) beta_I update
+//   substantially from their priors; beta_FR and theta_N remain largely
+//   prior-dominated; delta_C has moved from its prior but concentrates near
+//   its lower boundary (0.01) -- see manuscript Limitations.
 //
 // Usage (CmdStanR)
 // ----------------

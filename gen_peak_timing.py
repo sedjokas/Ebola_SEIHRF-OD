@@ -52,7 +52,7 @@ FIXED = dict(
     omega_FR = 0.80,
     omega_FS = 3.00,
     beta_D   = 8.00,
-    N_pop    = 10_877_533.0,
+    N_pop    = 12_996_531.0,
     seed_total = 8.0,
 )
 
@@ -138,7 +138,7 @@ def find_peak(t_eval, incidence):
 
 
 if __name__ == "__main__":
-    draws = pd.read_csv(os.path.join(LANCET, "posterior_draws.csv"))
+    draws = pd.read_csv(os.path.join(LANCET, "posterior_draws_full.csv"))
     T_MAX = 730   # 2-year horizon to ensure the peak is captured
 
     print("Running baseline long-horizon simulation at posterior median...")
@@ -211,7 +211,7 @@ if __name__ == "__main__":
         xytext=(np.median(peak_days) + 40, np.median(peak_incs) * 0.85),
         fontsize=8.5, color=CORAL,
         arrowprops=dict(arrowstyle="->", color=CORAL, lw=0.8))
-    ax1.axvspan(0, 71, color="gray", alpha=0.08, lw=0)
+    ax1.axvspan(0, 104, color="gray", alpha=0.08, lw=0)
     ax1.text(26, ax1.get_ylim()[1] if ax1.get_ylim()[1] > 0 else 1, "",
              fontsize=1)  # placeholder to keep autoscale stable before text below
     ax1.set_xlabel("Days since outbreak declaration (15 May 2026)")
@@ -227,7 +227,7 @@ if __name__ == "__main__":
     mask13 = t_e13 <= zoom_days
     ax2.plot(t_e13[mask13], inc13_med[mask13], color=TEAL, lw=1.8, ls="--",
               label="S1+S3 combined")
-    ax2.axvspan(0, 71, color="gray", alpha=0.12, lw=0, label="Calibration window (observed)")
+    ax2.axvspan(0, 104, color="gray", alpha=0.12, lw=0, label="Calibration window (observed)")
     ax2.set_xlabel("Days since outbreak declaration (15 May 2026)")
     ax2.set_ylabel("Daily incidence")
     ax2.set_title(f"(B)  Near-term window (days 0-{zoom_days})")
@@ -235,7 +235,7 @@ if __name__ == "__main__":
 
     fig.suptitle(
         "Projected epidemic peak under current dynamics (extrapolation beyond the\n"
-        "71-day calibration window; assumes no new interventions or security change)",
+        "104-day calibration window; assumes no new interventions or security change)",
         fontsize=9.5, y=1.03)
     fig.tight_layout()
 
@@ -252,6 +252,6 @@ if __name__ == "__main__":
         "lo95": [np.percentile(peak_days, 2.5), np.percentile(peak_incs, 2.5), np.percentile(peak_deaths, 2.5)],
         "hi95": [np.percentile(peak_days, 97.5), np.percentile(peak_incs, 97.5), np.percentile(peak_deaths, 97.5)],
     })
-    summary.to_csv(os.path.join(LANCET, "peak_timing_results.csv"), index=False)
+    summary.to_csv(os.path.join(LANCET, "peak_timing_results_update.csv"), index=False)
     print("\nSaved peak_timing_results.csv")
     print("\nDone.")
