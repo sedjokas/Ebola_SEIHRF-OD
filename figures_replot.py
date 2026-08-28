@@ -478,9 +478,12 @@ def figure3(draws: list[dict]):
                      f"{pct}%",
                      ha="center", fontsize=10, fontweight="bold", color=col)
 
+    # Short codes on the axis (full names are already in panel A's legend
+    # and the figure caption) -- the descriptive names were wide enough to
+    # overlap between adjacent ticks at any legible font size.
+    short_labels = ["Baseline", "S1", "S2", "S3", "S1+S3"]
     ax2.set_xticks(x)
-    ax2.set_xticklabels([lbl.replace("\n", "\n") for lbl in bar_labels],
-                        fontsize=8, ha="center")
+    ax2.set_xticklabels(short_labels, fontsize=10, ha="center")
     ax2.set_ylabel("Deaths averted at day 90 (posterior median)")
     ax2.set_title("B  Deaths averted by scenario\n(95% CrI from MCMC posterior)")
     ax2.axhline(0, color="k", lw=0.6)
@@ -719,7 +722,8 @@ def figureS4():
     ax2.axhline(10,  color="red",   lw=1.0, ls="--")
 
     ax2.set_xticks(x)
-    ax2.set_xticklabels([f"Anchor {i+1}" for i in range(n_a)], fontsize=9)
+    ax2.set_xticklabels([f"Anchor {i+1}" for i in range(n_a)], fontsize=8,
+                        rotation=45, ha="right")
     ax2.set_ylabel("% change in D(90) vs base", fontsize=10)
     ax2.set_title("(B)  % change in 90-day deaths per anchor perturbation",
                   fontsize=10, loc="left")
