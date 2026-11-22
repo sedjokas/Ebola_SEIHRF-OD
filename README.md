@@ -5,7 +5,7 @@
 
 This repository contains the code, data, and figures for:
 
-> Selain K. Kasereka, Kyandoghere Kyamakya, Jean-Jacques T. Muyembe,
+> Selain K. Kasereka, Jean-Jacques T. Muyembe, Kyandoghere Kyamakya,
 > "Political distrust, armed conflict, and body reclamation drive Ebola
 > transmission dynamics in eastern Democratic Republic of Congo: a
 > coupled epidemic and opinion dynamics model (SEIHRF-OD)"
@@ -525,8 +525,8 @@ WHO situation reports:
 
 ```bibtex
 @article{kasereka2026seihrf,
-  author  = {Kasereka, Selain K. and Kyamakya, Kyandoghere
-             and Muyembe, Jean-Jacques T.},
+  author  = {Kasereka, Selain K. and Muyembe, Jean-Jacques T.
+             and Kyamakya, Kyandoghere},
   title   = {Political distrust, armed conflict, and body reclamation
              drive {Ebola} transmission dynamics in eastern {DRC}:
              a coupled epidemic and opinion dynamics model ({SEIHRF-OD})},
@@ -538,7 +538,7 @@ WHO situation reports:
 Data: INRB-UMIE, *Ebola\_DRC\_2026*, build `1819da2`, GitHub, 2026.
 [https://github.com/INRB-UMIE/Ebola\_DRC\_2026](https://github.com/INRB-UMIE/Ebola_DRC_2026)
 
-Code archive: Kasereka SK, Kyamakya K, Muyembe JJT. *SEIHRF-OD*.
+Code archive: Kasereka SK, Muyembe JJT, Kyamakya K. *SEIHRF-OD*.
 Zenodo, 2026. [https://doi.org/10.5281/zenodo.20453103](https://doi.org/10.5281/zenodo.20453103)
 (concept DOI; always resolves to the latest archived version).
 
