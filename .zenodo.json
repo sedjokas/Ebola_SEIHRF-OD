@@ -1,6 +1,6 @@
 {
   "title": "SEIHRF-OD: Code, data, and figures for 'Political distrust, armed conflict, and body reclamation drive Ebola transmission dynamics in eastern DRC'",
-  "description": "Reproducibility package for the SEIHRF-OD model paper, submitted for peer review (2026). Contains Stan/Python calibration code, INSP sitrep data (INRB-UMIE/Ebola_DRC_2026, build 1819da2), posterior draws (5,713 confirmed cases, data freeze 25 August 2026), all publication figures, sensitivity analysis, hold-out validation, posterior predictive checks, and a long-horizon peak-timing projection. Note: results have been recalibrated three times as the outbreak progressed (127 -> 1,561 -> 2,973 -> 5,713 cases); the README documents which headline quantities were stable across freezes and which were not.",
+  "description": "Reproducibility package for the SEIHRF-OD model paper, submitted for peer review (2026). Contains Stan/Python calibration code, INSP sitrep data (INRB-UMIE/BDBV2026-Data, formerly Ebola_DRC_2026), posterior draws calibrated on the early growth phase (5,713 confirmed cases, 104 days, data freeze 25 August 2026, build 1819da2), all publication figures, sensitivity analysis, hold-out validation, and posterior predictive checks. Version 3.1.0 adds a prospective validation of the 25 August posterior, without refitting, against data released afterwards (to 20 November 2026; build 5779270b, SitRep 190; 11,762 confirmed cases): observed incidence peaked in mid-August and plateaued, whereas the constant-parameter model forecast continued growth (median 3.18 million vs 6,050 observed cases, 26 Aug-20 Nov). The long-horizon peak-timing projection included in earlier versions is withdrawn and kept only for the record. The README documents which headline quantities were stable across data freezes and which were not.",
   "upload_type": "software",
   "access_right": "open",
   "license": "MIT",
@@ -33,13 +33,19 @@
     "reproduction number",
     "Bayesian calibration",
     "Stan",
-    "CmdStanPy"
+    "CmdStanPy",
+    "prospective validation"
   ],
   "related_identifiers": [
     {
-      "identifier": "https://github.com/INRB-UMIE/Ebola_DRC_2026",
+      "identifier": "https://github.com/INRB-UMIE/BDBV2026-Data",
       "relation": "isSupplementTo",
       "scheme": "url"
+    },
+    {
+      "identifier": "10.5281/zenodo.21223302",
+      "relation": "references",
+      "scheme": "doi"
     }
   ],
   "language": "eng"
