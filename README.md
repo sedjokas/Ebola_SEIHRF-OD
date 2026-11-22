@@ -41,6 +41,19 @@ situation-report data (5,713 confirmed cases, data freeze 25 August 2026).
 The basic reproduction number R₀ is derived analytically via the Next
 Generation Matrix and evaluated across all posterior draws.
 
+> **Update — prospective validation to 20 November 2026.** The posterior
+> calibrated on the 25 August 2026 freeze was tested, without refitting,
+> against INSP data released afterwards (26 Aug–20 Nov 2026; 191 days in
+> total, 11,762 confirmed cases, 5,775 confirmed deaths, 68 health zones in
+> eight provinces). Observed incidence peaked in mid-August (28-day mean
+> ≈94 cases/day) and has since plateaued at ≈65–70 cases/day, whereas the
+> 25 August posterior forecast continued exponential growth (median
+> 3.18 million cases over 26 Aug–20 Nov vs 6,050 observed). The model is
+> therefore presented as a description of the **early growth phase
+> (14 May–25 Aug 2026)**, and the long-horizon peak-timing projection
+> (`gen_peak_timing.py`, `fig_peak_timing`) has been **withdrawn**. See
+> "Prospective validation" below.
+
 > **Note on reproducibility across data freezes:** this repository has now been
 > recalibrated three times as the outbreak progressed (127 → 1,561 → 2,973 →
 > 5,713 cases). Several headline quantities — the homogeneous-model R₀ gap, the
@@ -70,7 +83,8 @@ Ebola_SEIHRF-OD/
 ├── sensitivity_Ct.py            # C(t) sensitivity — superseded by figures_replot.py
 ├── acled_pipeline.py            # C(t) reconstruction from documented security events
 ├── homogeneous_r0.py            # Independent homogeneous-model R0 comparator (MLE fit)
-├── gen_peak_timing.py           # Long-horizon peak-timing + final-size projection
+├── prospective_validation.py    # 25 Aug posterior vs data to 20 Nov → fig5_prospective_validation
+├── gen_peak_timing.py           # WITHDRAWN long-horizon projection (kept for the record)
 ├── stan_data.json               # Prepared Stan input (5,713 cases, data freeze 25 Aug 2026)
 ├── posterior_draws.csv          # 8 000 MCMC draws (4 chains × 2 000 samples)
 ├── posterior_draws_full.csv     # Same draws plus derived R0_B, R0_N, rho_N, trM, detM
@@ -85,6 +99,9 @@ Ebola_SEIHRF-OD/
 │   ├── insp_sitrep__new_contacts_listed__daily.csv
 │   ├── update_2026_07_25/
 │   │   └── daily_new_cases_deaths_derived.csv   # Superseded; kept for the 71-day freeze's own reproducibility
+│   ├── update_2026_11_20/
+│   │   └── daily_new_cases_deaths_derived.csv   # 191-day series to 20 Nov 2026 (build 5779270b,
+│   │                                              # SitRep 190), same derivation; validation only
 │   └── update_2026_08_25/
 │       └── daily_new_cases_deaths_derived.csv   # Daily new cases/deaths recovered from the
 │                                                  # cumulative series (gaps spread evenly across
@@ -101,7 +118,8 @@ Ebola_SEIHRF-OD/
 │   ├── figS4_sensitivity_Ct.pdf          # C(t) sensitivity (12 anchors)
 │   ├── figS_ppc.{pdf,png}               # Posterior predictive check (all 104 days)
 │   ├── figS_holdout.{pdf,png}           # Hold-out validation (85/19 split)
-│   └── fig_peak_timing.{pdf,png}        # Long-horizon peak-timing projection (illustrative)
+│   ├── fig5_prospective_validation.{pdf,png}  # Prospective validation to 20 Nov 2026
+│   └── fig_peak_timing.{pdf,png}        # WITHDRAWN long-horizon projection
 └── src/
     ├── seihrf_od_model.py       # Python ODE implementation (exploratory; stale build reference)
     └── seird_od_model.py
@@ -179,11 +197,22 @@ python gen_ppc.py              # → imgs/figS_ppc.pdf/.png
 python holdout_validation.py   # → imgs/figS_holdout.pdf/.png
 ```
 
-### Long-horizon peak-timing / final-size projection
+### Prospective validation (no new MCMC)
 
 ```bash
-python gen_peak_timing.py   # → imgs/fig_peak_timing.pdf/.png
+python prospective_validation.py   # → imgs/fig5_prospective_validation.pdf/.png
 ```
+
+### Long-horizon peak-timing / final-size projection — WITHDRAWN
+
+```bash
+python gen_peak_timing.py   # → imgs/fig_peak_timing.pdf/.png  (withdrawn; see below)
+```
+
+**Withdrawn (November 2026).** The projection below (peak ≈ day 206 at
+≈172,400 cases/day, ≈3 million deaths) is contradicted by the observed
+data: incidence peaked in mid-August at ≈94 cases/day. The script is kept
+only for the record.
 
 Extends the calibrated model to a 730-day horizon holding C(t) at its last
 documented anchor level indefinitely, to estimate when daily incidence peaks
@@ -415,6 +444,30 @@ interval of the out-of-sample forecast, though only 1/19 falls within the
 tighter 50% interval — the model gets the epidemic regime right but not
 the precise day-to-day fluctuation, consistent with the volatility
 already visible in the observed series.
+
+### Prospective validation — 25 Aug posterior vs data to 20 Nov 2026
+
+The archived posterior (`posterior_draws_full.csv`, calibrated on days
+1–104, 14 May–25 Aug) is integrated forward to day 191 (20 Nov 2026) and
+compared with data released after calibration
+(`data/update_2026_11_20/`, INRB-UMIE/BDBV2026-Data build 5779270b).
+500 posterior draws; NegBin2 predictive intervals.
+
+| | 50% CrI | 95% CrI |
+|---|---|---|
+| Calibration coverage (104 days) | 56/104 (54%) | 94/104 (90%) |
+| **Prospective coverage (87 days, 26 Aug–20 Nov)** | **0/87 (0%)** | **54/87 (62%)** |
+
+| | Forecast (median, 95% CrI) | Observed |
+|---|---|---|
+| Cases, 26 Aug–20 Nov | 3,181,481 (1,492,517–5,976,656) | 6,050 |
+| Daily cases on 20 Nov | 139,241 (71,845–191,437) | 64 (7-day mean) |
+
+Observations first fall below the 95% lower bound on 2 Oct 2026 (day 142).
+The constant-parameter model captures the early growth phase but not the
+subsequent peak and plateau (effective R_t ≈ 1 since September); the
+plateau most plausibly reflects response scale-up, behavioural change,
+and/or reporting saturation that the model does not represent.
 
 ---
 
